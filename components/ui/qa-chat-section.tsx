@@ -20,8 +20,8 @@ const AI_AVATAR_SRC = "";
 const EXPLORE_IMAGE_SRC = "/탐색탭이미지.png";
 
 // ── Typing speeds ─────────────────────────────────────────────────────
-const USER_CHAR_MS = 40;
-const AI_CHAR_MS = 25;
+const USER_CHAR_MS = 18;
+const AI_CHAR_MS = 11;
 
 export type Msg = {
   role: "user" | "assistant";
@@ -173,7 +173,7 @@ export function ChatDemo({
     const run = async () => {
       let firstUser = true;
       cursorOverChat();
-      await sleep(700);
+      await sleep(400);
       for (const step of script) {
         if (cancelled) return;
 
@@ -181,7 +181,7 @@ export function ChatDemo({
           // After the first message the cursor idles near the button.
           if (!firstUser) {
             cursorNearSend();
-            await sleep(300);
+            await sleep(160);
           }
           // Type the question into the input, char by char.
           for (let i = 1; i <= step.text.length; i++) {
@@ -189,12 +189,12 @@ export function ChatDemo({
             setInput(step.text.slice(0, i));
             await sleep(USER_CHAR_MS);
           }
-          await sleep(350);
+          await sleep(180);
           // Move the fake cursor to the send button and press it.
           cursorToSend();
-          await sleep(firstUser ? 650 : 400);
+          await sleep(firstUser ? 340 : 200);
           setPressed(true);
-          await sleep(160);
+          await sleep(110);
           setPressed(false);
           // Commit the user bubble.
           setMessages((prev) => [...prev, { role: "user", text: step.text }]);
@@ -202,14 +202,14 @@ export function ChatDemo({
           // Keep the cursor resting near the button instead of flying away.
           cursorNearSend();
           firstUser = false;
-          await sleep(550);
+          await sleep(280);
         } else {
           // Typing indicator first.
           setMessages((prev) => [
             ...prev,
             { role: "assistant", text: "", typing: true },
           ]);
-          await sleep(1000);
+          await sleep(500);
           if (cancelled) return;
           // Switch to text and type it out.
           setMessages((prev) =>
@@ -230,7 +230,7 @@ export function ChatDemo({
           }
           // Reveal attachment / footnote / actions.
           if (step.image || step.footnote || step.actions) {
-            await sleep(250);
+            await sleep(150);
             setMessages((prev) =>
               prev.map((m, idx) =>
                 idx === prev.length - 1
@@ -245,7 +245,7 @@ export function ChatDemo({
               )
             );
           }
-          await sleep(700);
+          await sleep(350);
         }
       }
     };

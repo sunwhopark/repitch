@@ -93,6 +93,12 @@ function ReservationFlow({
       <div
         style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%" }}
       >
+        <img
+          src={completionLogoUrl}
+          alt="repitch"
+          style={{ width: 96, height: "auto", alignSelf: "center", marginBottom: 4 }}
+        />
+
         <div className="title-block">
           <h1>사전예약하고 가장 먼저 만나보세요</h1>
           <p>출시되면 입력하신 이메일로 알려드릴게요</p>

@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 function AnonAvatar({ variant = "influencer" }: { variant?: "influencer" | "brand" }) {
   const ring =
     variant === "influencer"
-      ? "from-orange-200 via-rose-300 to-violet-400"
-      : "from-slate-300 to-slate-500";
+      ? "from-neutral-300 to-neutral-500"
+      : "from-neutral-300 to-neutral-500";
   return (
     <div className={cn("w-10 h-10 rounded-full p-px flex-shrink-0 bg-gradient-to-br", ring)}>
       <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
@@ -153,9 +153,9 @@ export function Testimonials() {
             </p>
             <p className="text-sm leading-8 mt-3">
               처음 보는 제품을{" "}
-              <span className="text-orange-300 font-medium">억지로 소개하면</span>,
+              <span className="font-semibold">억지로 소개하면</span>,
               <br />
-              <span className="text-orange-300 font-medium">
+              <span className="font-semibold">
                 팔로워도 떠나고, 신뢰도 잃습니다.
               </span>
             </p>

@@ -16,8 +16,8 @@ type Counts = { brand: number; proposal: number; reservation: number };
 
 // TEMP: launch-period display offsets added on top of the real counts.
 // Remove (set to 0) once the real numbers stand on their own.
-const INFLUENCER_COUNT_OFFSET = 124;
-const BRAND_COUNT_OFFSET = 31;
+const INFLUENCER_COUNT_OFFSET = 12;
+const BRAND_COUNT_OFFSET = 9;
 
 export function ApplicantBand({ audience }: { audience: Audience }) {
   const [counts, setCounts] = useState<Counts | null>(null);
