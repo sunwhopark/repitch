@@ -23,7 +23,7 @@ export function SolutionSection() {
             <div className="overflow-hidden rounded-lg border border-border bg-muted/30 shadow-xl">
               <video
                 className="block h-auto w-full origin-center scale-[1.06]"
-                src="/KakaoTalk_Video_2026-06-27-18-38-08.mp4"
+                src="/repitch_influencer_body_video.mov"
                 autoPlay
                 muted
                 loop
