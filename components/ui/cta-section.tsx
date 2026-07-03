@@ -28,7 +28,7 @@ export function CtaSection({
           <p className="text-foreground/80">
             그 시작을{" "}
             <img
-              src="/repitch_wordmark.png"
+              src="/repitch_wordmark_alpha.png"
               alt="repitch"
               className="inline-block h-[0.85em] w-auto translate-y-[0.12em] dark:invert"
             />

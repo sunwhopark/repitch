@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase/client";
  * Saves to email_reservations (anon insert, RLS consent gate). No .select().
  */
 
-const completionLogoUrl = "/repitch_wordmark.png";
+const completionLogoUrl = "/repitch_wordmark_alpha.png";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);

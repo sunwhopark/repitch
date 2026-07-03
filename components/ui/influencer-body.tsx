@@ -19,7 +19,7 @@ const qaIntro = (
       이렇게 작성한 제안서는
       <br />
       <img
-        src="/repitch_wordmark.png"
+        src="/repitch_wordmark_alpha.png"
         alt="repitch"
         className="inline-block h-[0.85em] w-auto translate-y-[0.12em] dark:invert"
       />{" "}

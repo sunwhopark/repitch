@@ -22,7 +22,7 @@ import {
  * Supabase insert into brand_applications lands in the next step.
  */
 
-const completionLogoUrl = "/repitch_wordmark.png";
+const completionLogoUrl = "/repitch_wordmark_alpha.png";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);

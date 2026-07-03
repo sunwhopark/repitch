@@ -58,7 +58,7 @@ export function Footer() {
 			<div className="grid w-full gap-12 lg:grid-cols-[1fr_2fr] lg:gap-8">
 				<AnimatedContainer className="space-y-4">
 					<img
-						src="/repitch_wordmark.png"
+						src="/repitch_wordmark_alpha.png"
 						alt="repitch"
 						className="h-7 w-auto dark:invert"
 					/>

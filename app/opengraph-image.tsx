@@ -11,7 +11,7 @@ export const contentType = "image/png";
 
 export default async function Image() {
   const [logo, medium] = await Promise.all([
-    readFile(join(process.cwd(), "public/repitch_wordmark.png")),
+    readFile(join(process.cwd(), "public/repitch_wordmark_alpha.png")),
     readFile(
       join(process.cwd(), "Pretendard-1/web/static/woff/Pretendard-Medium.woff"),
     ),

@@ -53,7 +53,7 @@ const contentTypeOtherLabel = "기타 : 직접 입력";
 const toneOptions: ToneOption[] = ["정보", "유머", "일상", "기타: 직접 입력"];
 const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
 const isBrandSearchEnabled = false;
-const completionLogoUrl = "/repitch_wordmark.png";
+const completionLogoUrl = "/repitch_wordmark_alpha.png";
 
 const brand = {
   name: "이니스프리",

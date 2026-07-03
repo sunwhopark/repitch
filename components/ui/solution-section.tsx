@@ -9,7 +9,7 @@ export function SolutionSection() {
         {/* Section header */}
         <h2 className="mb-16 text-center text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
           <img
-            src="/repitch_wordmark.png"
+            src="/repitch_wordmark_alpha.png"
             alt="repitch"
             className="inline-block h-[0.85em] w-auto translate-y-[0.12em] dark:invert"
           />
