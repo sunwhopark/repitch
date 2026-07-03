@@ -20,8 +20,8 @@ export function Header({ audience, onAudienceChange }: HeaderProps) {
       })}
     >
       <nav className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-        <a href="/" className="hover:bg-accent rounded-md px-2 py-1">
-          <img src="/repitch_logo.png" alt="repitch" className="h-12 w-auto dark:invert" />
+        <a href="/" className="inline-flex items-center">
+          <img src="/repitch_wordmark.png" alt="repitch" className="h-7 w-auto dark:invert" />
         </a>
         <AudienceToggle audience={audience} onAudienceChange={onAudienceChange} />
       </nav>
