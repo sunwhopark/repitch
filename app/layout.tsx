@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "repitch",
-  description: "platform that connects u",
+  title: "repitch — 크리에이터가 먼저 제안하는 시대",
+  description:
+    "진정성과 수익성 모두 잡는 협업의 시작. 크리에이터가 브랜드에 먼저 제안하는 협업 플랫폼, repitch.",
 };
 
 export default function RootLayout({
