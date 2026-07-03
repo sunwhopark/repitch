@@ -10,13 +10,10 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image() {
-  const [logo, medium, bold] = await Promise.all([
+  const [logo, medium] = await Promise.all([
     readFile(join(process.cwd(), "public/repitch_wordmark.png")),
     readFile(
       join(process.cwd(), "Pretendard-1/web/static/woff/Pretendard-Medium.woff"),
-    ),
-    readFile(
-      join(process.cwd(), "Pretendard-1/web/static/woff/Pretendard-Bold.woff"),
     ),
   ]);
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
@@ -52,7 +49,7 @@ export default async function Image() {
           <div style={{ fontSize: 42, fontWeight: 500, color: "#52525b" }}>
             크리에이터가 먼저 제안하는 시대,
           </div>
-          <div style={{ fontSize: 56, fontWeight: 700, color: "#0a0a0b" }}>
+          <div style={{ fontSize: 42, fontWeight: 500, color: "#52525b" }}>
             진정성과 수익성 모두 잡는 협업의 시작
           </div>
         </div>
@@ -62,7 +59,6 @@ export default async function Image() {
       ...size,
       fonts: [
         { name: "Pretendard", data: medium, style: "normal", weight: 500 },
-        { name: "Pretendard", data: bold, style: "normal", weight: 700 },
       ],
     },
   );
