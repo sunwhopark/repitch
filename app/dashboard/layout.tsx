@@ -1,167 +1,343 @@
 "use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
+  Search,
   LayoutDashboard,
-  Inbox,
   Users,
-  Megaphone,
-  Wallet,
   Settings,
   LogOut,
-  SlidersHorizontal,
-  Menu,
+  Hash,
+  ChevronDown,
+  ChevronRight,
+  Inbox,
+  Megaphone,
+  Wallet,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Command,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
-import {
-  DashboardProvider,
-  useDashboard,
-} from "@/components/dashboard/dashboard-context";
+import { DashboardProvider } from "@/components/dashboard/dashboard-context";
 
-// Static for the demo — swap for the real brand account later.
-const DEMO_BRAND = { name: "데모 브랜드", sublabel: "DEMO" };
-
-type NavItem = {
-  href: string;
-  label: string;
+type NavItemData = {
+  id: string;
+  title: string;
   icon: React.ElementType;
-  badge?: "proposal";
+  href?: string;
+  badge?: number | string;
+  shortcut?: string;
+  defaultOpen?: boolean;
+  children?: NavItemData[];
 };
 
-const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
-  {
-    heading: "워크스페이스",
-    items: [
-      { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
-      { href: "/dashboard/inbox", label: "역제안 인박스", icon: Inbox, badge: "proposal" },
-      { href: "/dashboard/influencers", label: "인플루언서 DB", icon: Users },
-    ],
-  },
-  {
-    heading: "관리",
-    items: [
-      { href: "/dashboard/campaigns", label: "캠페인", icon: Megaphone },
-      { href: "/dashboard/settlement", label: "정산", icon: Wallet },
-    ],
-  },
+type NavGroupData = {
+  heading?: string;
+  items: NavItemData[];
+};
+
+const DEMO_WORKSPACE = "데모 브랜드";
+
+function buildNavGroups(
+  proposalCount: number | null,
+  pathname: string,
+): NavGroupData[] {
+  const inboxBadge =
+    proposalCount !== null && proposalCount > 0 ? proposalCount : undefined;
+
+  return [
+    {
+      items: [
+        { id: "search", title: "검색", icon: Search, shortcut: "⌘K" },
+        { id: "home", title: "대시보드", icon: LayoutDashboard, href: "/dashboard" },
+        {
+          id: "inbox",
+          title: "역제안 인박스",
+          icon: Inbox,
+          href: "/dashboard/inbox",
+          badge: inboxBadge,
+        },
+      ],
+    },
+    {
+      heading: "워크스페이스",
+      items: [
+        {
+          id: "influencers",
+          title: "인플루언서 DB",
+          icon: Users,
+          href: "/dashboard/influencers",
+        },
+        {
+          id: "campaigns",
+          title: "캠페인",
+          icon: Megaphone,
+          defaultOpen: pathname.startsWith("/dashboard/campaigns"),
+          children: [
+            { id: "c-active", title: "진행 중", icon: Hash, href: "/dashboard/campaigns" },
+            { id: "c-ended", title: "종료", icon: Hash, href: "/dashboard/campaigns" },
+          ],
+        },
+      ],
+    },
+    {
+      heading: "관리",
+      items: [
+        { id: "settlement", title: "정산", icon: Wallet, href: "/dashboard/settlement" },
+      ],
+    },
+  ];
+}
+
+const bottomItems: NavItemData[] = [
+  { id: "settings", title: "설정", icon: Settings },
+  { id: "exit", title: "랜딩으로 나가기", icon: LogOut },
 ];
 
-const itemBase =
-  "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors";
-const itemActive = "bg-foreground/10 text-foreground font-medium";
-const itemIdle = "text-muted-foreground hover:bg-foreground/5 hover:text-foreground";
-
-function SidebarContent({
-  pathname,
-  proposalCount,
-  onNavigate,
-  onReconfigure,
-}: {
-  pathname: string;
-  proposalCount: number | null;
-  onNavigate: () => void;
-  onReconfigure: () => void;
-}) {
-  const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+function WorkspaceSwitcher() {
+  const [isOpen, setIsOpen] = useState(false);
+  const current = DEMO_WORKSPACE;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Brand identity + switcher */}
-      <div className="shrink-0 px-3 pt-4">
-        <Link href="/" className="inline-flex items-center px-1">
-          <img
-            src="/repitch_wordmark_alpha.png"
-            alt="repitch"
-            className="h-5 w-auto dark:invert"
-          />
-        </Link>
-        <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground text-[13px] font-semibold text-background">
-            {DEMO_BRAND.name.charAt(0)}
+    <div className="relative">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between px-2 py-2 mb-4 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors select-none group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-[6px] bg-foreground text-background flex items-center justify-center font-semibold text-[13px] shadow-sm">
+            {current.charAt(0)}
           </div>
-          <div className="flex min-w-0 flex-col leading-none">
-            <span className="truncate text-[13px] font-medium text-foreground">
-              {DEMO_BRAND.name}
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-[13px] font-medium leading-none mb-1 text-foreground truncate max-w-[120px]">
+              {current}
             </span>
-            <span className="mt-1 text-[11px] tracking-wide text-muted-foreground">
-              {DEMO_BRAND.sublabel}
+            <span className="text-[11px] text-muted-foreground leading-none">
+              DEMO
             </span>
           </div>
         </div>
+        <ChevronDown
+          className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground/70 transition-colors shrink-0"
+          strokeWidth={1.5}
+        />
       </div>
 
-      {/* Nav groups */}
-      <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.heading} className="space-y-0.5">
-            <span className="px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-              {group.heading}
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-[52px] left-0 w-full bg-card border border-border/50 rounded-lg shadow-xl z-50 py-1 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100">
+            {[DEMO_WORKSPACE].map((ws) => (
+              <div
+                key={ws}
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  "px-3 py-2 mx-1 text-[13px] rounded-md cursor-pointer transition-colors",
+                  current === ws
+                    ? "bg-foreground/10 text-foreground font-medium"
+                    : "text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5",
+                )}
+              >
+                {ws}
+              </div>
+            ))}
+            <div className="h-px bg-border/50 my-1 mx-2" />
+            <div className="px-3 py-2 mx-1 text-[13px] text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-md cursor-pointer flex items-center gap-2 transition-colors">
+              <span className="text-[16px] leading-none mb-0.5">+</span> 워크스페이스
+              생성
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function NavItem({
+  item,
+  activeId,
+  onSelect,
+  level = 0,
+}: {
+  item: NavItemData;
+  activeId: string;
+  onSelect: (id: string) => void;
+  level?: number;
+}) {
+  const isActive = activeId === item.id;
+  const hasChildren = !!item.children;
+  const [isOpen, setIsOpen] = useState(!!item.defaultOpen);
+
+  const handleClick = () => {
+    if (hasChildren) {
+      setIsOpen(!isOpen);
+    } else {
+      onSelect(item.id);
+    }
+  };
+
+  return (
+    <div className="flex flex-col w-full">
+      <div
+        className={cn(
+          "group flex items-center justify-between px-2.5 py-[7px] rounded-[6px] cursor-pointer transition-all duration-200 select-none",
+          isActive
+            ? "bg-black/5 dark:bg-white/10 text-foreground font-medium"
+            : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground/90",
+        )}
+        style={{ paddingLeft: `${level * 12 + 10}px` }}
+        onClick={handleClick}
+      >
+        <div className="flex items-center gap-2.5">
+          <item.icon
+            className={cn(
+              "w-[16px] h-[16px] transition-colors",
+              isActive
+                ? "text-foreground"
+                : "text-muted-foreground/70 group-hover:text-foreground/70",
+            )}
+            strokeWidth={1.5}
+          />
+          <span className="text-[13px] tracking-wide truncate">{item.title}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {item.shortcut && (
+            <kbd className="hidden group-hover:inline-flex items-center justify-center h-5 px-1.5 text-[10px] font-medium font-mono text-muted-foreground/60 bg-background/50 border border-border/50 rounded-[4px] shadow-xs">
+              {item.shortcut}
+            </kbd>
+          )}
+          {item.badge && (
+            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-medium rounded-full bg-foreground/10 text-foreground">
+              {item.badge}
             </span>
-            {group.items.map(({ href, label, icon: Icon, badge }) => {
-              const showBadge =
-                badge === "proposal" &&
-                proposalCount !== null &&
-                proposalCount > 0;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={onNavigate}
-                  className={cn(itemBase, isActive(href) ? itemActive : itemIdle)}
-                >
-                  <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                  <span className="flex-1 truncate">{label}</span>
-                  {showBadge && (
-                    <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-foreground/10 px-1.5 py-0.5 text-[11px] font-medium text-foreground">
-                      {proposalCount}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+          )}
+          {hasChildren && (
+            <ChevronRight
+              className={cn(
+                "w-3.5 h-3.5 text-muted-foreground/50 transition-transform duration-200",
+                isOpen && "rotate-90",
+              )}
+              strokeWidth={2}
+            />
+          )}
+        </div>
+      </div>
+
+      {hasChildren && (
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out",
+            isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+          )}
+        >
+          <div className="overflow-hidden min-h-0 relative flex flex-col gap-0.5 mt-0.5">
+            <div
+              className="absolute top-0 bottom-0 border-l border-black/5 dark:border-white/5"
+              style={{ left: `${level * 12 + 17.5}px` }}
+            />
+            {item.children!.map((child) => (
+              <NavItem
+                key={child.id}
+                item={child}
+                activeId={activeId}
+                onSelect={onSelect}
+                level={level + 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidebarNav({
+  groups,
+  activeId,
+  onSelect,
+}: {
+  groups: NavGroupData[];
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col w-[260px] h-full bg-card/50 p-3">
+      <WorkspaceSwitcher />
+
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col gap-4 mt-2">
+        {groups.map((group, idx) => (
+          <div key={idx} className="flex flex-col gap-0.5">
+            {group.heading && (
+              <span className="px-2.5 mb-1 text-[11px] font-semibold tracking-wider text-muted-foreground/50 uppercase">
+                {group.heading}
+              </span>
+            )}
+            {group.items.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                activeId={activeId}
+                onSelect={onSelect}
+              />
+            ))}
           </div>
         ))}
-      </nav>
+      </div>
 
-      {/* Bottom actions */}
-      <div className="shrink-0 space-y-0.5 border-t border-border px-3 py-3">
-        <button
-          type="button"
-          className={cn(itemBase, itemIdle)}
-          onClick={() => {
-            onNavigate();
-            onReconfigure();
-          }}
-        >
-          <SlidersHorizontal className="size-4 shrink-0" strokeWidth={1.75} />
-          <span className="flex-1 text-left">필터 다시 설정</span>
-        </button>
-        <button
-          type="button"
-          className={cn(itemBase, itemIdle, "cursor-default")}
-          title="준비 중"
-        >
-          <Settings className="size-4 shrink-0" strokeWidth={1.75} />
-          <span className="flex-1 text-left">설정</span>
-        </button>
-        <Link href="/" className={cn(itemBase, itemIdle)}>
-          <LogOut className="size-4 shrink-0" strokeWidth={1.75} />
-          <span className="flex-1 text-left">랜딩으로 나가기</span>
-        </Link>
+      <div className="mt-auto pt-4 border-t border-border/50 flex flex-col gap-0.5">
+        {bottomItems.map((item) => (
+          <NavItem
+            key={item.id}
+            item={item}
+            activeId={activeId}
+            onSelect={onSelect}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
+function activeIdFromPath(pathname: string): string {
+  if (pathname === "/dashboard") return "home";
+  if (pathname.startsWith("/dashboard/inbox")) return "inbox";
+  if (pathname.startsWith("/dashboard/influencers")) return "influencers";
+  if (pathname.startsWith("/dashboard/campaigns")) return "campaigns";
+  if (pathname.startsWith("/dashboard/settlement")) return "settlement";
+  return "";
+}
+
+const ROUTE_BY_ID: Record<string, string> = {
+  home: "/dashboard",
+  inbox: "/dashboard/inbox",
+  influencers: "/dashboard/influencers",
+  settlement: "/dashboard/settlement",
+  "c-active": "/dashboard/campaigns",
+  "c-ended": "/dashboard/campaigns",
+};
+
+const TITLE_BY_ID: Record<string, string> = {
+  home: "대시보드",
+  inbox: "역제안 인박스",
+  influencers: "인플루언서 DB",
+  campaigns: "캠페인",
+  settlement: "정산",
+};
+
 function DashboardShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const { openFilter } = useDashboard();
+  const [isOpen, setIsOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [proposalCount, setProposalCount] = useState<number | null>(null);
+
+  const activeId = activeIdFromPath(pathname);
+  const activeTitle = TITLE_BY_ID[activeId] ?? "대시보드";
+  const groups = buildNavGroups(proposalCount, pathname);
 
   // Inbox badge = proposal_submissions count (reuse the counts RPC). Hidden on failure.
   useEffect(() => {
@@ -175,54 +351,143 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Start collapsed (drawer closed) on mobile.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    if (mq.matches) setIsOpen(false);
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // ⌘K / Ctrl+K opens the command palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const handleSelect = (id: string) => {
+    if (id === "search") {
+      setIsSearchOpen(true);
+      return;
+    }
+    if (id === "settings") return; // placeholder
+    if (id === "exit") {
+      router.push("/");
+      return;
+    }
+    const href = ROUTE_BY_ID[id];
+    if (href) {
+      router.push(href);
+      if (isMobile) setIsOpen(false);
+    }
+  };
+
   return (
     <div className="flex min-h-[100svh] w-full bg-background text-foreground">
-      {/* Sidebar */}
+      {/* Sidebar — desktop: width collapse; mobile: slide-in drawer */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-60 border-r border-border bg-background transition-transform duration-200 md:static md:translate-x-0",
-          open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 shrink-0 overflow-hidden border-r border-border/50 bg-background transition-[width,transform] duration-300 ease-in-out md:static md:z-auto",
+          "w-[260px]",
+          isOpen
+            ? "translate-x-0 opacity-100 md:w-[260px]"
+            : "-translate-x-full opacity-100 md:w-0 md:translate-x-0 md:opacity-0 md:border-none",
         )}
       >
-        <div className="flex h-full flex-col">
-          {/* mobile close */}
-          <div className="flex justify-end px-3 pt-3 md:hidden">
-            <button type="button" aria-label="사이드바 닫기" onClick={() => setOpen(false)}>
-              <X className="size-5" />
-            </button>
-          </div>
-          <SidebarContent
-            pathname={pathname}
-            proposalCount={proposalCount}
-            onNavigate={() => setOpen(false)}
-            onReconfigure={openFilter}
-          />
-        </div>
+        <SidebarNav groups={groups} activeId={activeId} onSelect={handleSelect} />
       </aside>
 
       {/* Mobile overlay */}
-      {open && (
+      {isOpen && (
         <div
           className="fixed inset-0 z-30 bg-foreground/40 md:hidden"
           aria-hidden="true"
-          onClick={() => setOpen(false)}
+          onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 md:hidden">
-          <button type="button" aria-label="메뉴 열기" onClick={() => setOpen(true)}>
-            <Menu className="size-5" />
-          </button>
-          <img
-            src="/repitch_wordmark_alpha.png"
-            alt="repitch"
-            className="h-5 w-auto dark:invert"
-          />
+        {/* Header — collapse toggle + breadcrumb */}
+        <div className="h-14 border-b border-border/50 flex items-center px-4 justify-between bg-card shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="사이드바 토글"
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition-colors shrink-0"
+            >
+              {isOpen ? (
+                <PanelLeftClose className="w-[18px] h-[18px]" strokeWidth={1.5} />
+              ) : (
+                <PanelLeftOpen className="w-[18px] h-[18px]" strokeWidth={1.5} />
+              )}
+            </button>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <span className="truncate">{DEMO_WORKSPACE}</span>
+              <span>/</span>
+              <span className="font-medium text-foreground truncate">
+                {activeTitle}
+              </span>
+            </div>
+          </div>
         </div>
-        <main className="flex-1 p-6 md:p-8">{children}</main>
+
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
       </div>
+
+      {/* ⌘K command palette */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-background/40 backdrop-blur-sm px-4">
+          <div className="absolute inset-0" onClick={() => setIsSearchOpen(false)} />
+          <div className="relative w-full max-w-xl bg-card border border-border/50 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center px-4 border-b border-border/50">
+              <Search
+                className="w-[18px] h-[18px] text-muted-foreground/70 mr-3 shrink-0"
+                strokeWidth={1.5}
+              />
+              <input
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setIsSearchOpen(false);
+                }}
+                className="flex-1 bg-transparent py-4 outline-none text-[14px] text-foreground placeholder:text-muted-foreground/50"
+                placeholder="프로젝트, 문서, 액션 검색..."
+              />
+              <kbd
+                onClick={() => setIsSearchOpen(false)}
+                className="hidden sm:inline-flex items-center justify-center h-5 px-1.5 ml-2 text-[10px] font-medium font-mono text-muted-foreground/70 bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 rounded-[4px] cursor-pointer hover:text-foreground hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+              >
+                ESC
+              </kbd>
+              <button
+                onClick={() => setIsSearchOpen(false)}
+                aria-label="검색 닫기"
+                className="ml-3 p-1 rounded-md text-muted-foreground/70 hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground transition-colors"
+              >
+                <X className="w-[18px] h-[18px]" strokeWidth={1.5} />
+              </button>
+            </div>
+            <div className="p-2 py-8 flex flex-col items-center justify-center">
+              <Command
+                className="w-6 h-6 text-muted-foreground/30 mb-2"
+                strokeWidth={1.5}
+              />
+              <p className="text-[13px] text-muted-foreground font-medium">
+                명령어를 입력하거나 검색하세요...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
