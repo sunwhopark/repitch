@@ -14,8 +14,8 @@ import { Label } from './label';
 
 // Controlled: opened from the sidebar WorkspaceSwitcher; onCreate adds the
 // workspace (demo, in-memory) and selects it.
-// Surface styling matches our other modals (plain white card, dark pill CTA);
-// only per-modal className overrides here — see dialog.tsx note for the X button.
+// Surface styling matches our other modals — per-modal className overrides
+// (border removed → shadow only, plain white card, dark pill CTA).
 export function CreateWorkspaceModal({
 	open,
 	onOpenChange,
@@ -26,20 +26,16 @@ export function CreateWorkspaceModal({
 	onCreate: (name: string) => void;
 }) {
 	const [name, setName] = React.useState('');
-	const [slug, setSlug] = React.useState('');
 
 	React.useEffect(() => {
-		if (open) {
-			setName('');
-			setSlug('');
-		}
+		if (open) setName('');
 	}, [open]);
 
 	const canCreate = name.trim().length > 0;
 
 	return (
 		<Modal open={open} onOpenChange={onOpenChange}>
-			<ModalContent className="md:max-w-md md:rounded-2xl">
+			<ModalContent className="md:max-w-md md:rounded-2xl md:border-0 md:shadow-xl">
 				{/* Override the shadcn header band → plain white card */}
 				<ModalHeader className="items-center gap-3 border-b-0 bg-transparent py-9">
 					<Grid2x2Plus className="size-9" />
@@ -55,7 +51,7 @@ export function CreateWorkspaceModal({
 						</Link>
 					</div>
 				</ModalHeader>
-				<ModalBody className="space-y-4 p-4 md:p-4">
+				<ModalBody className="space-y-5 p-4 pb-6 md:p-4 md:pb-6">
 					<div className="grid gap-2">
 						<Label>워크스페이스 이름</Label>
 						<Input
@@ -66,22 +62,6 @@ export function CreateWorkspaceModal({
 							onChange={(e) => setName(e.target.value)}
 							autoFocus
 						/>
-					</div>
-					<div className="grid gap-2">
-						<Label>워크스페이스 주소</Label>
-
-						<div className="flex rounded-xl">
-							<span className="border-input bg-input/30 text-muted-foreground inline-flex items-center rounded-s-xl border px-3 text-sm">
-								repitch.kr/
-							</span>
-							<Input
-								placeholder="예: demo-brand"
-								className="-ms-px rounded-s-none rounded-e-xl shadow-none"
-								autoComplete="off"
-								value={slug}
-								onChange={(e) => setSlug(e.target.value)}
-							/>
-						</div>
 					</div>
 
 					<button
