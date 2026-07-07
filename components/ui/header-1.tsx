@@ -1,5 +1,6 @@
 'use client';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { useScroll } from '@/components/ui/use-scroll';
 
 export type Audience = 'influencer' | 'brand';
@@ -7,9 +8,10 @@ export type Audience = 'influencer' | 'brand';
 type HeaderProps = {
   audience: Audience;
   onAudienceChange: (audience: Audience) => void;
+  onStart?: () => void;
 };
 
-export function Header({ audience, onAudienceChange }: HeaderProps) {
+export function Header({ audience, onAudienceChange, onStart }: HeaderProps) {
   const scrolled = useScroll(10);
 
   return (
@@ -19,11 +21,20 @@ export function Header({ audience, onAudienceChange }: HeaderProps) {
           scrolled,
       })}
     >
-      <nav className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-        <a href="/" className="inline-flex items-center">
+      <nav className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-2 px-4">
+        <a href="/" className="inline-flex shrink-0 items-center">
           <img src="/repitch_wordmark_alpha.png" alt="repitch" className="h-7 w-auto dark:invert" />
         </a>
-        <AudienceToggle audience={audience} onAudienceChange={onAudienceChange} />
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <AudienceToggle audience={audience} onAudienceChange={onAudienceChange} />
+          <Button
+            size="sm"
+            className="shrink-0 rounded-full px-3 sm:px-4"
+            onClick={onStart}
+          >
+            시작하기
+          </Button>
+        </div>
       </nav>
     </header>
   );
