@@ -20,7 +20,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
-import { DashboardProvider } from "@/components/dashboard/dashboard-context";
+import {
+  DashboardProvider,
+  useDashboard,
+} from "@/components/dashboard/dashboard-context";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 
 type NavItemData = {
@@ -363,6 +366,7 @@ const TITLE_BY_ID: Record<string, string> = {
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { openFilter } = useDashboard();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -420,7 +424,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       setIsSearchOpen(true);
       return;
     }
-    if (id === "settings") return; // placeholder
+    if (id === "settings") {
+      // Temporary: reuse the filter modal until a real settings page exists.
+      openFilter();
+      if (isMobile) setIsOpen(false);
+      return;
+    }
     if (id === "exit") {
       router.push("/");
       return;
