@@ -8,13 +8,14 @@ import {
 	ModalTitle,
 } from '@/components/ui/modal';
 import Link from 'next/link';
-import { Button } from './button';
 import { Input } from './input';
 import { Grid2x2Plus } from 'lucide-react';
 import { Label } from './label';
 
 // Controlled: opened from the sidebar WorkspaceSwitcher; onCreate adds the
 // workspace (demo, in-memory) and selects it.
+// Surface styling matches our other modals (plain white card, dark pill CTA);
+// only per-modal className overrides here — see dialog.tsx note for the X button.
 export function CreateWorkspaceModal({
 	open,
 	onOpenChange,
@@ -38,8 +39,9 @@ export function CreateWorkspaceModal({
 
 	return (
 		<Modal open={open} onOpenChange={onOpenChange}>
-			<ModalContent className="md:max-w-md">
-				<ModalHeader className="items-center py-10">
+			<ModalContent className="md:max-w-md md:rounded-2xl">
+				{/* Override the shadcn header band → plain white card */}
+				<ModalHeader className="items-center gap-3 border-b-0 bg-transparent py-9">
 					<Grid2x2Plus className="size-9" />
 					<div className="flex flex-col items-center space-y-1">
 						<ModalTitle className="text-2xl font-medium">
@@ -58,6 +60,8 @@ export function CreateWorkspaceModal({
 						<Label>워크스페이스 이름</Label>
 						<Input
 							placeholder="예: 데모 브랜드"
+							className="rounded-xl"
+							autoComplete="off"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 							autoFocus
@@ -66,27 +70,28 @@ export function CreateWorkspaceModal({
 					<div className="grid gap-2">
 						<Label>워크스페이스 주소</Label>
 
-						<div className="flex rounded-md shadow-xs">
-							<span className="border-input bg-input/30 text-muted-foreground inline-flex items-center rounded-s-md border px-3 text-sm">
+						<div className="flex rounded-xl">
+							<span className="border-input bg-input/30 text-muted-foreground inline-flex items-center rounded-s-xl border px-3 text-sm">
 								repitch.kr/
 							</span>
 							<Input
 								placeholder="예: demo-brand"
-								className="-ms-px rounded-s-none shadow-none"
+								className="-ms-px rounded-s-none rounded-e-xl shadow-none"
+								autoComplete="off"
 								value={slug}
 								onChange={(e) => setSlug(e.target.value)}
 							/>
 						</div>
 					</div>
 
-					<Button
-						size="lg"
-						className="w-full"
+					<button
+						type="button"
 						disabled={!canCreate}
 						onClick={() => onCreate(name.trim())}
+						className="h-11 w-full rounded-full bg-foreground text-sm font-medium text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:hover:bg-muted"
 					>
 						만들기
-					</Button>
+					</button>
 				</ModalBody>
 			</ModalContent>
 		</Modal>
