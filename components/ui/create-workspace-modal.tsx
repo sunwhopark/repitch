@@ -56,7 +56,7 @@ export function CreateWorkspaceModal({
 						<Label>워크스페이스 이름</Label>
 						<Input
 							placeholder="예: 데모 브랜드"
-							className="rounded-xl"
+							className="rounded-xl focus-visible:border-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
 							autoComplete="off"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
