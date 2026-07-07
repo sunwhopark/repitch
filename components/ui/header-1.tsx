@@ -25,14 +25,15 @@ export function Header({ audience, onAudienceChange, onStart }: HeaderProps) {
         <a href="/" className="inline-flex shrink-0 items-center">
           <img src="/repitch_wordmark_alpha.png" alt="repitch" className="h-7 w-auto dark:invert" />
         </a>
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <AudienceToggle audience={audience} onAudienceChange={onAudienceChange} />
           <Button
             size="sm"
-            className="shrink-0 rounded-full px-3 sm:px-4"
+            variant="outline"
+            className="shrink-0 rounded-full border-foreground/15 px-3 shadow-sm sm:px-4"
             onClick={onStart}
           >
-            시작하기
+            로그인
           </Button>
         </div>
       </nav>
