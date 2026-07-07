@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
 import { DashboardProvider } from "@/components/dashboard/dashboard-context";
+import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 
 type NavItemData = {
   id: string;
@@ -96,9 +97,19 @@ const bottomItems: NavItemData[] = [
   { id: "exit", title: "랜딩으로 나가기", icon: LogOut },
 ];
 
-function WorkspaceSwitcher() {
+function WorkspaceSwitcher({
+  workspaces,
+  selected,
+  onSelectWorkspace,
+  onCreateClick,
+}: {
+  workspaces: string[];
+  selected: string;
+  onSelectWorkspace: (ws: string) => void;
+  onCreateClick: () => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
-  const current = DEMO_WORKSPACE;
+  const current = selected;
 
   return (
     <div className="relative">
@@ -129,10 +140,13 @@ function WorkspaceSwitcher() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
           <div className="absolute top-[52px] left-0 w-full bg-card border border-border/50 rounded-lg shadow-xl z-50 py-1 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100">
-            {[DEMO_WORKSPACE].map((ws) => (
+            {workspaces.map((ws) => (
               <div
                 key={ws}
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  onSelectWorkspace(ws);
+                  setIsOpen(false);
+                }}
                 className={cn(
                   "px-3 py-2 mx-1 text-[13px] rounded-md cursor-pointer transition-colors",
                   current === ws
@@ -144,9 +158,15 @@ function WorkspaceSwitcher() {
               </div>
             ))}
             <div className="h-px bg-border/50 my-1 mx-2" />
-            <div className="px-3 py-2 mx-1 text-[13px] text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-md cursor-pointer flex items-center gap-2 transition-colors">
+            <div
+              onClick={() => {
+                onCreateClick();
+                setIsOpen(false);
+              }}
+              className="px-3 py-2 mx-1 text-[13px] text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-md cursor-pointer flex items-center gap-2 transition-colors"
+            >
               <span className="text-[16px] leading-none mb-0.5">+</span> 워크스페이스
-              생성
+              만들기
             </div>
           </div>
         </>
@@ -258,14 +278,27 @@ function SidebarNav({
   groups,
   activeId,
   onSelect,
+  workspaces,
+  selectedWorkspace,
+  onSelectWorkspace,
+  onCreateWorkspace,
 }: {
   groups: NavGroupData[];
   activeId: string;
   onSelect: (id: string) => void;
+  workspaces: string[];
+  selectedWorkspace: string;
+  onSelectWorkspace: (ws: string) => void;
+  onCreateWorkspace: () => void;
 }) {
   return (
     <div className="flex flex-col w-[260px] h-full bg-card/50 p-3">
-      <WorkspaceSwitcher />
+      <WorkspaceSwitcher
+        workspaces={workspaces}
+        selected={selectedWorkspace}
+        onSelectWorkspace={onSelectWorkspace}
+        onCreateClick={onCreateWorkspace}
+      />
 
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col gap-4 mt-2">
         {groups.map((group, idx) => (
@@ -334,6 +367,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [proposalCount, setProposalCount] = useState<number | null>(null);
+  const [workspaces, setWorkspaces] = useState<string[]>([DEMO_WORKSPACE]);
+  const [selectedWorkspace, setSelectedWorkspace] = useState(DEMO_WORKSPACE);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const createWorkspace = (name: string) => {
+    setWorkspaces((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    setSelectedWorkspace(name);
+    setCreateOpen(false);
+  };
 
   const activeId = activeIdFromPath(pathname);
   const activeTitle = TITLE_BY_ID[activeId] ?? "대시보드";
@@ -402,7 +444,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             : "-translate-x-full opacity-100 md:w-0 md:translate-x-0 md:opacity-0 md:border-none",
         )}
       >
-        <SidebarNav groups={groups} activeId={activeId} onSelect={handleSelect} />
+        <SidebarNav
+          groups={groups}
+          activeId={activeId}
+          onSelect={handleSelect}
+          workspaces={workspaces}
+          selectedWorkspace={selectedWorkspace}
+          onSelectWorkspace={setSelectedWorkspace}
+          onCreateWorkspace={() => setCreateOpen(true)}
+        />
       </aside>
 
       {/* Mobile overlay */}
@@ -432,7 +482,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               )}
             </button>
             <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-              <span className="truncate">{DEMO_WORKSPACE}</span>
+              <span className="truncate">{selectedWorkspace}</span>
               <span>/</span>
               <span className="font-medium text-foreground truncate">
                 {activeTitle}
@@ -443,6 +493,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
       </div>
+
+      {/* Create workspace (responsive Dialog/Drawer) */}
+      <CreateWorkspaceModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreate={createWorkspace}
+      />
 
       {/* ⌘K command palette */}
       {isSearchOpen && (
