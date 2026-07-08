@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, Inbox, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
 import type { DashboardFilters } from "@/components/dashboard/filter-modal";
@@ -141,11 +141,13 @@ function Detail({
   decision,
   onDecision,
   onBack,
+  onClose,
 }: {
   item: ScoredProposal;
   decision: Decision | null;
   onDecision: (d: Decision, reasons?: string[]) => void;
   onBack: () => void;
+  onClose: () => void;
 }) {
   const p = item.proposal;
   const [more, setMore] = useState(false);
@@ -182,11 +184,21 @@ function Detail({
               <b className="font-semibold text-foreground">{p.expected_price}만원</b>
             </div>
           </div>
-          <div className="ml-auto shrink-0 text-right">
-            <div className="text-3xl font-extrabold leading-none tracking-tight tabular-nums">
-              {Math.round(item.composite)}
+          <div className="ml-auto flex shrink-0 items-start gap-3">
+            <div className="text-right">
+              <div className="text-3xl font-extrabold leading-none tracking-tight tabular-nums">
+                {Math.round(item.composite)}
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">종합점수</div>
             </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">종합점수</div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="상세 닫기"
+              className="hidden size-8 place-items-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:grid"
+            >
+              <X className="size-4" />
+            </button>
           </div>
         </div>
 
@@ -404,12 +416,22 @@ export default function InboxPage() {
   const [showExcluded, setShowExcluded] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
 
-  // Keep a valid selection as the filtered list changes.
+  // No auto-select. Only clear a selection that got filtered out.
   useEffect(() => {
-    if (!visible.some((v) => v.proposal.id === selectedId)) {
-      setSelectedId(visible[0]?.proposal.id ?? null);
+    if (selectedId && !visible.some((v) => v.proposal.id === selectedId)) {
+      setSelectedId(null);
     }
   }, [visible, selectedId]);
+
+  // ESC closes the detail (desktop).
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
 
   const selected = visible.find((v) => v.proposal.id === selectedId) ?? null;
 
@@ -482,11 +504,16 @@ export default function InboxPage() {
             decision={decisions[selected.proposal.id] ?? null}
             onDecision={(d) => setDecisions((prev) => ({ ...prev, [selected.proposal.id]: d }))}
             onBack={() => setMobileDetail(false)}
+            onClose={() => setSelectedId(null)}
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1 p-8 text-center">
-            <p className="text-sm font-medium">조건에 맞는 제안이 없어요</p>
-            <p className="text-xs text-muted-foreground">사이드바 “설정” 또는 상단 필터를 조정해보세요.</p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+            <Inbox className="size-8 text-muted-foreground/40" strokeWidth={1.5} />
+            <p className="text-sm text-muted-foreground">
+              {visible.length === 0
+                ? "조건에 맞는 제안이 없어요"
+                : "제안을 선택하면 상세 내용이 표시됩니다"}
+            </p>
           </div>
         )}
       </div>
