@@ -271,7 +271,6 @@ function authAxis(p: SeedProposal): Axis {
     score: p.c2.score,
     max: 30,
     available: true,
-    note: "AI 분석값 (데모)",
   };
   const C3: Indicator = {
     key: "C3",
@@ -279,7 +278,6 @@ function authAxis(p: SeedProposal): Axis {
     score: p.c3.score,
     max: 25,
     available: true,
-    note: "AI 분석값 (데모)",
   };
   const C4: Indicator = {
     key: "C4",
@@ -287,7 +285,6 @@ function authAxis(p: SeedProposal): Axis {
     score: p.c4.score,
     max: 15,
     available: true,
-    note: "AI 분석값 (데모)",
   };
   return axisFrom("Auth", "진정성", [C1, C2, C3, C4]);
 }
@@ -340,13 +337,38 @@ export function scoreAll(pool: SeedProposal[] = SEED_PROPOSALS): ScoredProposal[
     .sort((a, b) => b.composite - a.composite);
 }
 
+function categoryCompatible(p: SeedProposal): boolean {
+  const brandCat = DEMO_BRAND.category;
+  return (
+    p.selected_categories.includes(brandCat) ||
+    p.selected_categories.some((c) => (ADJACENCY[brandCat] || []).includes(c))
+  );
+}
+
 export function passesFilters(p: SeedProposal, f: DashboardFilters): boolean {
+  // 하드 필터: 카테고리 완전 비호환(인접도 아님)은 항상 제외 (설계서 §4.3-1).
+  if (!categoryCompatible(p)) return false;
   if (f.creatorType !== "상관없음" && p.creator_type !== f.creatorType) return false;
   if (f.gender !== "상관없음" && p.creator_gender !== f.gender) return false;
   if (!f.countries.includes("상관없음")) {
     if (!p.audience_country.some((c) => f.countries.includes(c))) return false;
   }
   return true;
+}
+
+// 제외 사유(한눈에) — 카테고리 우선, 그다음 사용자 필터.
+export function exclusionReason(p: SeedProposal, f: DashboardFilters): string {
+  if (!categoryCompatible(p)) return "카테고리 비호환";
+  if (f.creatorType !== "상관없음" && p.creator_type !== f.creatorType)
+    return `유형 불일치`;
+  if (f.gender !== "상관없음" && p.creator_gender !== f.gender)
+    return `성별 불일치`;
+  if (
+    !f.countries.includes("상관없음") &&
+    !p.audience_country.some((c) => f.countries.includes(c))
+  )
+    return "타겟 국가 불일치";
+  return "조건 불일치";
 }
 
 /*

@@ -14,6 +14,7 @@ import {
 
 type DashboardCtx = {
   filters: DashboardFilters;
+  setFilters: (f: DashboardFilters) => void;
   openFilter: () => void;
 };
 
@@ -39,7 +40,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openFilter = useCallback(() => setOpen(true), []);
 
   return (
-    <Ctx.Provider value={{ filters, openFilter }}>
+    <Ctx.Provider value={{ filters, setFilters, openFilter }}>
       {children}
       <FilterModal
         open={open}

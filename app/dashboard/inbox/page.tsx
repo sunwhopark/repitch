@@ -1,11 +1,13 @@
 "use client";
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
+import type { DashboardFilters } from "@/components/dashboard/filter-modal";
 import {
   scoreAll,
   passesFilters,
+  exclusionReason,
   WEIGHTS,
   type Axis,
   type ScoredProposal,
@@ -24,39 +26,36 @@ function fmt(n: number) {
   return n >= 10000 ? `${(n / 10000).toFixed(n % 10000 ? 1 : 0)}만` : n.toLocaleString();
 }
 
-function ScoreBar({ score }: { score: number }) {
+function AxisChip({ label, score }: { label: string; score: number }) {
   return (
-    <div className="h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-      <div className="h-full rounded-full bg-foreground" style={{ width: `${score}%` }} />
-    </div>
+    <span className="flex items-center gap-1.5">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold tabular-nums text-foreground">{Math.round(score)}</span>
+      <span className="hidden h-1 w-8 overflow-hidden rounded-full bg-foreground/10 sm:inline-block">
+        <span className="block h-full rounded-full bg-foreground/60" style={{ width: `${score}%` }} />
+      </span>
+    </span>
   );
 }
 
-function AxisScore({ label, score }: { label: string; score: number }) {
-  return (
-    <div className="min-w-0 flex-1">
-      <div className="mb-1 flex items-baseline justify-between gap-1">
-        <span className="text-[11px] text-muted-foreground">{label}</span>
-        <span className="text-xs font-semibold tabular-nums">{Math.round(score)}</span>
-      </div>
-      <ScoreBar score={score} />
-    </div>
-  );
-}
-
-function AxisBreakdown({ axis }: { axis: Axis }) {
+function AxisBreakdown({ axis, badge }: { axis: Axis; badge?: string }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs font-semibold">
-        <span>{axis.label}</span>
+        <span className="flex items-center gap-1.5">
+          {axis.label}
+          {badge && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+              {badge}
+            </span>
+          )}
+        </span>
         <span className="tabular-nums">{Math.round(axis.score)}/100</span>
       </div>
       {axis.indicators.map((i) => (
         <div key={i.key} className="flex items-start justify-between gap-3 text-[12px]">
           <div className="min-w-0">
-            <span className={cn(!i.available && "text-muted-foreground")}>
-              {i.label}
-            </span>
+            <span className={cn(!i.available && "text-muted-foreground")}>{i.label}</span>
             {i.raw && <span className="ml-2 text-muted-foreground">· {i.raw}</span>}
             {i.note && (
               <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -76,11 +75,15 @@ function AxisBreakdown({ axis }: { axis: Axis }) {
 function ProposalCard({ item }: { item: ScoredProposal }) {
   const { proposal: p } = item;
   const [expanded, setExpanded] = useState(false);
+  const [showAllEvidence, setShowAllEvidence] = useState(false);
+  const [showStory, setShowStory] = useState(false);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reasons, setReasons] = useState<string[]>([]);
 
   const badge = decision ?? p.status;
+  const evidence = [...p.c2.evidence, ...p.c3.evidence, ...p.c4.evidence];
+  const shownEvidence = showAllEvidence ? evidence : evidence.slice(0, 2);
   const toggleReason = (r: string) =>
     setReasons((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
 
@@ -100,35 +103,33 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
             {p.product_name} · {p.creator_type} · {p.creator_gender}
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 items-center gap-3">
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-[11px] font-medium",
-              decision
-                ? "bg-foreground text-background"
-                : "border border-border text-muted-foreground",
+              decision ? "bg-foreground text-background" : "border border-border text-muted-foreground",
             )}
           >
             {badge}
           </span>
           <div className="text-right">
-            <div className="text-lg font-bold leading-none tabular-nums">
+            <div className="text-3xl font-bold leading-none tabular-nums">
               {Math.round(item.composite)}
             </div>
-            <div className="text-[10px] text-muted-foreground">종합</div>
+            <div className="mt-0.5 text-[10px] text-muted-foreground">종합</div>
           </div>
         </div>
       </div>
 
-      {/* 3-axis scores */}
-      <div className="mt-3 flex gap-4">
-        <AxisScore label="적합도" score={item.fit.score} />
-        <AxisScore label="역량" score={item.quality.score} />
-        <AxisScore label="진정성" score={item.auth.score} />
+      {/* Compact 3-axis */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <AxisChip label="적합도" score={item.fit.score} />
+        <AxisChip label="역량" score={item.quality.score} />
+        <AxisChip label="진정성" score={item.auth.score} />
       </div>
 
       {/* meta */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <span className="text-muted-foreground">
           제안 단가 <span className="font-medium text-foreground">{p.expected_price}만원</span>
         </span>
@@ -151,29 +152,39 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
 
       {expanded && (
         <div className="mt-3 space-y-4 border-t border-border pt-3 text-sm">
-          {/* axis breakdowns */}
           <div className="grid gap-4 md:grid-cols-3">
             <AxisBreakdown axis={item.fit} />
             <AxisBreakdown axis={item.quality} />
-            <AxisBreakdown axis={item.auth} />
+            <AxisBreakdown axis={item.auth} badge="AI 분석 (데모)" />
           </div>
 
-          {/* C evidence */}
-          <div className="space-y-1">
-            <div className="text-xs font-semibold">진정성 근거 (LLM 인용)</div>
-            {[...p.c2.evidence, ...p.c3.evidence, ...p.c4.evidence].map((e, i) => (
-              <p key={i} className="text-[12px] text-muted-foreground">“{e}”</p>
-            ))}
-            {p.c3.ad_speak_flags.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {p.c3.ad_speak_flags.map((f) => (
-                  <span key={f} className="rounded border border-border px-1.5 py-0.5 text-[10px]">
-                    상투어: {f}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* C evidence (대표 2개 + 더 보기) */}
+          {evidence.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-xs font-semibold">진정성 근거</div>
+              {shownEvidence.map((e, i) => (
+                <p key={i} className="text-[12px] text-muted-foreground">“{e}”</p>
+              ))}
+              {evidence.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllEvidence((v) => !v)}
+                  className="text-[11px] text-muted-foreground underline hover:text-foreground"
+                >
+                  {showAllEvidence ? "접기" : `더 보기 (${evidence.length - 2})`}
+                </button>
+              )}
+              {p.c3.ad_speak_flags.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {p.c3.ad_speak_flags.map((f) => (
+                    <span key={f} className="rounded border border-border px-1.5 py-0.5 text-[10px]">
+                      상투어: {f}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* B4 curator */}
           <div className="text-[12px]">
@@ -183,7 +194,7 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
             </span>
           </div>
 
-          {/* Price transparency (§5) */}
+          {/* Price (§5) */}
           <div className="rounded-lg bg-muted/40 p-3 text-[12px] leading-relaxed">
             <div className="mb-1 font-semibold">단가 비교</div>
             제안 단가 {item.price.price}만원 · 예상 조회수 {fmt(item.price.viewsLow)}~
@@ -193,27 +204,33 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
             <span className="font-medium text-foreground">
               {item.price.deltaPct === 0
                 ? "비슷한 수준의 단가예요"
-                : `약 ${Math.abs(item.price.deltaPct)}% ${
-                    item.price.deltaPct > 0 ? "높은" : "낮은"
-                  } 단가예요`}
+                : `약 ${Math.abs(item.price.deltaPct)}% ${item.price.deltaPct > 0 ? "높은" : "낮은"} 단가예요`}
             </span>
             <div className="mt-1 text-[11px] text-muted-foreground">
               예상 조회수는 최근 성과를 기반으로 한 추정치입니다.
             </div>
           </div>
 
-          {/* Weights */}
           <div className="text-[11px] text-muted-foreground">
             적용 가중치 (기본): 적합도 {WEIGHTS.fit * 100}% · 역량 {WEIGHTS.quality * 100}% · 진정성{" "}
             {WEIGHTS.auth * 100}%
           </div>
 
-          {/* Story */}
+          {/* Story (기본 접힘) */}
           <div>
-            <div className="text-xs font-semibold">제안 서사</div>
-            <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">
-              {p.story_text}
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowStory((v) => !v)}
+              className="flex items-center gap-1 text-xs font-semibold hover:text-foreground"
+            >
+              <ChevronDown className={cn("size-3.5 transition-transform", showStory && "rotate-180")} />
+              제안 서사 전문
+            </button>
+            {showStory && (
+              <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">
+                {p.story_text}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -292,8 +309,58 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
   );
 }
 
+function FilterChips({
+  filters,
+  setFilters,
+}: {
+  filters: DashboardFilters;
+  setFilters: (f: DashboardFilters) => void;
+}) {
+  const chips: { key: string; label: string; clear: () => void }[] = [];
+  if (filters.creatorType !== "상관없음")
+    chips.push({
+      key: "type",
+      label: filters.creatorType,
+      clear: () => setFilters({ ...filters, creatorType: "상관없음" }),
+    });
+  if (filters.gender !== "상관없음")
+    chips.push({
+      key: "gender",
+      label: filters.gender,
+      clear: () => setFilters({ ...filters, gender: "상관없음" }),
+    });
+  if (!filters.countries.includes("상관없음"))
+    for (const c of filters.countries)
+      chips.push({
+        key: "c-" + c,
+        label: c,
+        clear: () => {
+          const next = filters.countries.filter((x) => x !== c);
+          setFilters({ ...filters, countries: next.length ? next : ["상관없음"] });
+        },
+      });
+
+  if (chips.length === 0) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">적용 필터</span>
+      {chips.map((c) => (
+        <button
+          key={c.key}
+          type="button"
+          onClick={c.clear}
+          className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs hover:bg-accent"
+        >
+          {c.label}
+          <X className="size-3 text-muted-foreground" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function InboxPage() {
-  const { filters } = useDashboard();
+  const { filters, setFilters } = useDashboard();
   const scored = useMemo(() => scoreAll(), []);
 
   const { visible, excluded } = useMemo(() => {
@@ -314,7 +381,9 @@ export default function InboxPage() {
         종합점수 순으로 정렬된 역제안서 {visible.length}건. 필터는 사이드바 “설정”에서 변경할 수 있어요.
       </p>
 
-      <div className="mt-6 space-y-3">
+      <FilterChips filters={filters} setFilters={setFilters} />
+
+      <div className="mt-5 space-y-3">
         {visible.map((item) => (
           <ProposalCard key={item.proposal.id} item={item} />
         ))}
@@ -328,20 +397,25 @@ export default function InboxPage() {
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ChevronDown className={cn("size-3.5 transition-transform", showExcluded && "rotate-180")} />
-            필터로 제외된 제안 {excluded.length}건
+            조건 불일치로 제외된 제안 {excluded.length}건
           </button>
           {showExcluded && (
             <div className="mt-3 space-y-2">
               {excluded.map((s) => (
                 <div
                   key={s.proposal.id}
-                  className="flex items-center justify-between rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground"
                 >
-                  <span>
-                    {s.proposal.profile_name} · {s.proposal.creator_type} · {s.proposal.creator_gender} ·{" "}
-                    {s.proposal.audience_country.join("/")}
+                  <span className="min-w-0 truncate">
+                    {s.proposal.profile_name} · {s.proposal.selected_categories[0]} ·{" "}
+                    {s.proposal.creator_type}/{s.proposal.creator_gender}
                   </span>
-                  <span className="tabular-nums">종합 {Math.round(s.composite)}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                      {exclusionReason(s.proposal, filters)}
+                    </span>
+                    <span className="tabular-nums">종합 {Math.round(s.composite)}</span>
+                  </span>
                 </div>
               ))}
             </div>

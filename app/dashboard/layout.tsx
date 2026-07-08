@@ -442,7 +442,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-[100svh] w-full bg-background text-foreground">
+    <div className="flex h-[100svh] w-full overflow-hidden bg-background text-foreground">
       {/* Sidebar — desktop: width collapse; mobile: slide-in drawer */}
       <aside
         className={cn(
@@ -500,7 +500,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
       </div>
 
       {/* Create workspace (responsive Dialog/Drawer) */}
