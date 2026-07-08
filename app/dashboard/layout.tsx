@@ -500,7 +500,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
+        {/* Pages own their scroll/padding (inbox is a full-bleed split view). */}
+        <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       </div>
 
       {/* Create workspace (responsive Dialog/Drawer) */}
