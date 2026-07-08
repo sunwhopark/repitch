@@ -113,7 +113,7 @@ function fitAxis(p: SeedProposal): Axis {
   else if (cats.some((c) => (ADJACENCY[brandCat] || []).includes(c))) a1 = 18;
   const A1: Indicator = {
     key: "A1",
-    label: "카테고리 일치",
+    label: "카테고리 적합",
     score: a1,
     max: 35,
     available: true,
@@ -130,7 +130,7 @@ function fitAxis(p: SeedProposal): Axis {
     const coef = genderCoef(p.audience_stats, DEMO_BRAND.targetGender);
     A2 = {
       key: "A2",
-      label: "오디언스 겹침",
+      label: "타겟 고객 일치",
       score: round1(inTarget * coef * 35),
       max: 35,
       available: true,
@@ -139,11 +139,11 @@ function fitAxis(p: SeedProposal): Axis {
   } else {
     A2 = {
       key: "A2",
-      label: "오디언스 겹침",
+      label: "타겟 고객 일치",
       score: 0,
       max: 35,
       available: false,
-      note: "오디언스 데이터 미제공",
+      note: "타겟 고객 데이터 없음 (점수에서 제외)",
     };
   }
 
@@ -196,21 +196,21 @@ function qualityAxis(p: SeedProposal, pool: SeedProposal[]): Axis {
     const seg = (pts / 12) * 20;
     B2 = {
       key: "B2",
-      label: "참여 질",
+      label: "팔로워 반응",
       score: round1((seg / 20) * 30),
       max: 30,
       available: true,
-      note: "댓글 품질(10) 데이터 없음 → 구간점수만",
+      note: "댓글 데이터 없음 → 반응 지표로만 평가",
       raw: `좋아요·저장·공유 구간합 ${pts}/12`,
     };
   } else {
     B2 = {
       key: "B2",
-      label: "참여 질",
+      label: "팔로워 반응",
       score: 0,
       max: 30,
       available: false,
-      note: "YT: 참여 지표 없음 → B1·B5로 분산(합의사항)",
+      note: "YouTube 참여 지표 없음 → 성과·성장세에 반영",
     };
   }
 
@@ -232,7 +232,7 @@ function qualityAxis(p: SeedProposal, pool: SeedProposal[]): Axis {
     const s20 = r >= 1.1 ? 20 : r >= 1.0 ? 16 : r >= 0.9 ? 12 : r >= 0.8 ? 8 : 4;
     B5 = {
       key: "B5",
-      label: "최근 추세",
+      label: "최근 성장세",
       score: round1((s20 / 20) * b5Max),
       max: b5Max,
       available: true,
@@ -241,15 +241,15 @@ function qualityAxis(p: SeedProposal, pool: SeedProposal[]): Axis {
   } else {
     B5 = {
       key: "B5",
-      label: "최근 추세",
+      label: "최근 성장세",
       score: 0,
       max: b5Max,
       available: false,
-      note: "추세 데이터 없음",
+      note: "최근 성장세 데이터 없음 (점수에서 제외)",
     };
   }
 
-  return axisFrom("Quality", "역량", [B1, B2, B4, B5]);
+  return axisFrom("Quality", "크리에이터 역량", [B1, B2, B4, B5]);
 }
 
 // ── C. Authenticity ────────────────────────────────────────────────
@@ -258,7 +258,7 @@ function authAxis(p: SeedProposal): Axis {
   const c1 = weeks >= 8 ? 30 : weeks >= 4 ? 20 : weeks >= 2 ? 10 : 5;
   const C1: Indicator = {
     key: "C1",
-    label: "체험 기간",
+    label: "제품 사용 기간",
     score: c1,
     max: 30,
     available: true,
@@ -267,27 +267,27 @@ function authAxis(p: SeedProposal): Axis {
   // C2~C4: 실서비스에선 LLM이 채우는 자리. 데모는 시드 사전값 사용.
   const C2: Indicator = {
     key: "C2",
-    label: "서사 구체성",
+    label: "경험의 구체성",
     score: p.c2.score,
     max: 30,
     available: true,
-    note: "LLM 평가 (데모: 사전값)",
+    note: "AI 분석값 (데모)",
   };
   const C3: Indicator = {
     key: "C3",
-    label: "진정성/역설득",
+    label: "제안 동기",
     score: p.c3.score,
     max: 25,
     available: true,
-    note: "LLM 평가 (데모: 사전값)",
+    note: "AI 분석값 (데모)",
   };
   const C4: Indicator = {
     key: "C4",
-    label: "정체성 일치",
+    label: "채널과의 어울림",
     score: p.c4.score,
     max: 15,
     available: true,
-    note: "LLM 평가 (데모: 사전값)",
+    note: "AI 분석값 (데모)",
   };
   return axisFrom("Auth", "진정성", [C1, C2, C3, C4]);
 }
@@ -298,7 +298,8 @@ function priceInfo(p: SeedProposal): PriceInfo {
   const perTenKLow = p.expected_price / (viewsHigh / 10000); // 뷰 많을수록 저렴
   const perTenKHigh = p.expected_price / (viewsLow / 10000);
   const bench = PRICE_BENCHMARK[p.selected_categories[0]] ?? 3.0;
-  const mid = p.expected_price / ((p.peak_views * 0.775) / 10000);
+  // 비교 %는 단가 적정성(A3)과 동일 기준(1만뷰당 단가 vs 카테고리 중앙값)으로 일관화.
+  const perTenK = p.expected_price / (p.peak_views / 10000);
   return {
     price: p.expected_price,
     viewsLow,
@@ -306,7 +307,7 @@ function priceInfo(p: SeedProposal): PriceInfo {
     perTenKLow: round1(perTenKLow),
     perTenKHigh: round1(perTenKHigh),
     benchmark: bench,
-    deltaPct: Math.round((mid / bench - 1) * 100),
+    deltaPct: Math.round((perTenK / bench - 1) * 100),
   };
 }
 

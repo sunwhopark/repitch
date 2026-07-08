@@ -48,16 +48,14 @@ function AxisBreakdown({ axis }: { axis: Axis }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs font-semibold">
-        <span>
-          {axis.key} · {axis.label}
-        </span>
+        <span>{axis.label}</span>
         <span className="tabular-nums">{Math.round(axis.score)}/100</span>
       </div>
       {axis.indicators.map((i) => (
         <div key={i.key} className="flex items-start justify-between gap-3 text-[12px]">
           <div className="min-w-0">
             <span className={cn(!i.available && "text-muted-foreground")}>
-              {i.key} {i.label}
+              {i.label}
             </span>
             {i.raw && <span className="ml-2 text-muted-foreground">· {i.raw}</span>}
             {i.note && (
@@ -124,9 +122,9 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
 
       {/* 3-axis scores */}
       <div className="mt-3 flex gap-4">
-        <AxisScore label="Fit" score={item.fit.score} />
-        <AxisScore label="Quality" score={item.quality.score} />
-        <AxisScore label="Auth" score={item.auth.score} />
+        <AxisScore label="적합도" score={item.fit.score} />
+        <AxisScore label="역량" score={item.quality.score} />
+        <AxisScore label="진정성" score={item.auth.score} />
       </div>
 
       {/* meta */}
@@ -187,23 +185,26 @@ function ProposalCard({ item }: { item: ScoredProposal }) {
 
           {/* Price transparency (§5) */}
           <div className="rounded-lg bg-muted/40 p-3 text-[12px] leading-relaxed">
-            <div className="mb-1 font-semibold">단가 투명성</div>
+            <div className="mb-1 font-semibold">단가 비교</div>
             제안 단가 {item.price.price}만원 · 예상 조회수 {fmt(item.price.viewsLow)}~
-            {fmt(item.price.viewsHigh)} → 1만뷰당 {item.price.perTenKLow}~{item.price.perTenKHigh}만원
+            {fmt(item.price.viewsHigh)}
             <br />
-            풀 중앙값 {item.price.benchmark}만원 대비{" "}
+            비슷한 규모의 {p.selected_categories[0]} 인플루언서들과 비교하면{" "}
             <span className="font-medium text-foreground">
-              {item.price.deltaPct > 0 ? "+" : ""}
-              {item.price.deltaPct}%
+              {item.price.deltaPct === 0
+                ? "비슷한 수준의 단가예요"
+                : `약 ${Math.abs(item.price.deltaPct)}% ${
+                    item.price.deltaPct > 0 ? "높은" : "낮은"
+                  } 단가예요`}
             </span>
             <div className="mt-1 text-[11px] text-muted-foreground">
-              예상 조회수는 과거 성과 기반 추정이며 보장 수치가 아닙니다.
+              예상 조회수는 최근 성과를 기반으로 한 추정치입니다.
             </div>
           </div>
 
           {/* Weights */}
           <div className="text-[11px] text-muted-foreground">
-            적용 가중치 (기본): Fit {WEIGHTS.fit * 100}% · Quality {WEIGHTS.quality * 100}% · Auth{" "}
+            적용 가중치 (기본): 적합도 {WEIGHTS.fit * 100}% · 역량 {WEIGHTS.quality * 100}% · 진정성{" "}
             {WEIGHTS.auth * 100}%
           </div>
 
