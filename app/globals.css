@@ -81,3 +81,17 @@ body {
   color: var(--foreground);
   font-family: var(--font-pretendard), Arial, sans-serif;
 }
+
+/* recharts는 조회용 그래픽 — 클릭/포커스 시 브라우저 기본 파란 아웃라인 제거.
+   recharts 자체 클래스에만 한정해 버튼·input 등의 포커스 링은 건드리지 않음. */
+.recharts-responsive-container,
+.recharts-wrapper,
+.recharts-surface {
+  outline: none;
+}
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus,
+.recharts-surface:focus-visible {
+  outline: none;
+}
