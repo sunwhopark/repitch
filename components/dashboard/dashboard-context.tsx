@@ -23,6 +23,8 @@ type DashboardCtx = {
   campaigns: Campaign[];
   addCampaign: (c: Campaign) => void;
   updateCampaign: (c: Campaign) => void;
+  // Functional update by id — safe from stale closures (선정/발송/배송 시뮬).
+  mutateCampaign: (id: string, fn: (c: Campaign) => Campaign) => void;
   removeCampaign: (id: string) => void;
   // 역제안 응답 상태 — 인박스와 캠페인 상세 패널이 공유(양쪽 동기화).
   decisions: Record<string, Decision>;
@@ -54,6 +56,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (c: Campaign) => setCampaigns((prev) => prev.map((x) => (x.id === c.id ? c : x))),
     [],
   );
+  const mutateCampaign = useCallback(
+    (id: string, fn: (c: Campaign) => Campaign) =>
+      setCampaigns((prev) => prev.map((x) => (x.id === id ? fn(x) : x))),
+    [],
+  );
   const removeCampaign = useCallback(
     (id: string) => setCampaigns((prev) => prev.filter((x) => x.id !== id)),
     [],
@@ -81,7 +88,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openFilter = useCallback(() => setOpen(true), []);
 
   return (
-    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign, updateCampaign, removeCampaign, decisions, setDecision, favorites, toggleFavorite }}>
+    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign, updateCampaign, mutateCampaign, removeCampaign, decisions, setDecision, favorites, toggleFavorite }}>
       {children}
       <FilterModal
         open={open}

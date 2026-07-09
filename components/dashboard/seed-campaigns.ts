@@ -13,6 +13,14 @@ export type CreatorStatus =
   | "역제안 도착"
   | "미선정";
 
+// 배송지 — 전부 더미. 실서비스: 크리에이터 온보딩 때 수집하고, 선정된 건에
+// 한해 브랜드에게 노출한다(개인정보 최소 노출).
+export type ShippingAddress = {
+  recipient: string;
+  phone: string; // 뒷자리 마스킹
+  address: string;
+};
+
 export type CampaignCreator = {
   name: string;
   handle: string; // @username
@@ -20,6 +28,23 @@ export type CampaignCreator = {
   followers: number;
   status: CreatorStatus;
   proposalId?: string; // set when 역제안 도착 → links to the inbox seed
+  shipping?: ShippingAddress; // 선정 이후 노출
+  tracking?: { carrier: string; number: string }; // 발송 등록 시
+  trialStartDate?: string; // 체험 중 전환 시 (C1 지표의 체험 시작점)
+};
+
+// 신청자 — 검토·선정 대상. 매칭 점수는 점수 엔진의 Fit 개념을 딴 경량 사전
+// 계산값(실서비스: proposal 데이터가 모이면 lib/scoring 전체 엔진으로 산출).
+export type Applicant = {
+  id: string;
+  name: string;
+  handle: string;
+  platform: "instagram" | "youtube";
+  followers: number;
+  category: string;
+  engagement: number;
+  matchScore: number;
+  status: "검토 대기" | "선정" | "보류";
 };
 
 export type CampaignPost = {
@@ -63,6 +88,7 @@ export type Campaign = {
   status: "진행 중" | "종료";
   funnel: CampaignFunnel;
   creators: CampaignCreator[];
+  applicants?: Applicant[]; // 진행 중 캠페인에 부여(아래 post-process)
   posts: CampaignPost[];
   // Set only on wizard-created campaigns. Seeds omit it → not editable/deletable
   // (home stat + inbox deep links depend on the seeds staying fixed).
@@ -138,3 +164,92 @@ export const SEED_CAMPAIGNS: Campaign[] = [
 ];
 
 export const getCampaign = (id: string) => SEED_CAMPAIGNS.find((c) => c.id === id);
+
+// ── 운영(선정·발송) 더미 데이터 ─────────────────────────────────────────
+import { SEED_INFLUENCERS } from "@/components/dashboard/seed-influencers";
+
+// 택배사 조회 URL 패턴(구조만 — 더미 송장이라 실제 조회는 안 됨). 실서비스:
+// 배송추적 API(스마트택배 등)로 상태를 폴링해 자동 전환한다.
+export const CARRIERS: { name: string; url: (n: string) => string }[] = [
+  { name: "CJ대한통운", url: (n) => `https://trace.cjlogistics.com/next/tracking.html?wblNo=${n}` },
+  { name: "우체국", url: (n) => `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${n}` },
+  { name: "한진택배", url: (n) => `https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&wblnumText2=${n}` },
+  { name: "롯데택배", url: (n) => `https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo=${n}` },
+];
+
+const ADDR_POOL = [
+  "서울특별시 마포구 양화로 ○○ (더미)",
+  "서울특별시 성동구 왕십리로 ○○ (더미)",
+  "경기도 성남시 분당구 판교로 ○○ (더미)",
+  "부산광역시 해운대구 센텀중앙로 ○○ (더미)",
+];
+const hash = (s: string) => [...s].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+// 배송지 더미(선정 시 부여). 전화 뒷자리만 노출, 앞은 마스킹.
+export function dummyShipping(recipient: string): ShippingAddress {
+  const h = hash(recipient);
+  return {
+    recipient,
+    phone: `010-****-${String(1000 + (h % 9000))}`,
+    address: ADDR_POOL[h % ADDR_POOL.length],
+  };
+}
+export function dummyInvoice(seed: string): string {
+  return String(6010_0000_0000 + (hash(seed) % 90_000_000));
+}
+
+// 경량 매칭 점수(Fit 개념) — 카테고리 일치 + 참여율 + 규모.
+function matchScore(inf: (typeof SEED_INFLUENCERS)[number], productCategory: string): number {
+  let s = 45;
+  if (inf.category === productCategory) s += 28;
+  else if (inf.category === "라이프스타일" || inf.category === "패션") s += 12;
+  s += Math.min(16, inf.engagement * 3.2);
+  s += Math.min(11, inf.followers / 12000);
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+function buildApplicants(ids: string[], cat: string): Applicant[] {
+  return ids
+    .map((id) => SEED_INFLUENCERS.find((i) => i.id === id))
+    .filter((i): i is (typeof SEED_INFLUENCERS)[number] => !!i)
+    .map((inf) => ({
+      id: inf.id,
+      name: inf.profile_name,
+      handle: `@${inf.profile_name}`,
+      platform: inf.platform,
+      followers: inf.followers,
+      category: inf.category,
+      engagement: inf.engagement,
+      matchScore: matchScore(inf, cat),
+      status: "검토 대기" as const,
+    }));
+}
+// 선정된 신청자 → 크리에이터(선정됨 + 배송지 부여).
+export function applicantToCreator(a: Applicant): CampaignCreator {
+  return {
+    name: a.name,
+    handle: a.handle,
+    platform: a.platform,
+    followers: a.followers,
+    status: "선정됨",
+    shipping: dummyShipping(a.name),
+  };
+}
+
+// 진행 중 캠페인별 신청자(인플루언서 DB에서 재사용, 각 캠페인 크리에이터와 중복 없이).
+const APPLICANT_IDS: Record<string, string[]> = {
+  toner: ["sora.liplog", "daily_bom", "yujin.care", "min_v.official", "foodie_noel", "gym_rio", "style_jenny", "vlog_seora", "appreview_su"],
+  lipbalm: ["eunchae.skin", "jiwoo.daily", "daily_bom", "style_jenny", "foodie_noel", "tech_maru", "gym_rio", "travel_doy", "appreview_su", "haneul.glow"],
+  cleanser: ["haneul.glow", "sora.liplog", "daily_bom", "vlog_seora", "gym_rio", "foodie_noel", "style_jenny", "tech_maru", "appreview_su"],
+};
+
+// Attach dummy shipping/tracking/trial to seed creators + build applicants.
+for (const c of SEED_CAMPAIGNS) {
+  for (const cr of c.creators) {
+    if (cr.status !== "미선정") cr.shipping = dummyShipping(cr.name);
+    if (cr.status === "발송됨") cr.tracking = { carrier: "CJ대한통운", number: dummyInvoice(cr.handle) };
+    if (cr.status === "체험 중") {
+      cr.tracking = { carrier: "우체국", number: dummyInvoice(cr.handle) };
+      cr.trialStartDate = "6/28";
+    }
+  }
+  c.applicants = buildApplicants(APPLICANT_IDS[c.id] ?? [], "뷰티"); // 시드 제품은 전부 뷰티
+}
