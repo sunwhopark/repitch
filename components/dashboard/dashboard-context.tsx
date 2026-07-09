@@ -12,6 +12,7 @@ import {
   type DashboardFilters,
 } from "@/components/dashboard/filter-modal";
 import { SEED_CAMPAIGNS, type Campaign } from "@/components/dashboard/seed-campaigns";
+import type { Decision } from "@/components/dashboard/proposal-detail";
 
 type DashboardCtx = {
   filters: DashboardFilters;
@@ -23,6 +24,9 @@ type DashboardCtx = {
   addCampaign: (c: Campaign) => void;
   updateCampaign: (c: Campaign) => void;
   removeCampaign: (id: string) => void;
+  // 역제안 응답 상태 — 인박스와 캠페인 상세 패널이 공유(양쪽 동기화).
+  decisions: Record<string, Decision>;
+  setDecision: (id: string, d: Decision) => void;
 };
 
 const Ctx = createContext<DashboardCtx | null>(null);
@@ -52,6 +56,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const setDecision = useCallback(
+    (id: string, d: Decision) => setDecisions((prev) => ({ ...prev, [id]: d })),
+    [],
+  );
+
   // Demo: no persistence — the filter modal auto-opens on first entry each
   // session; "필터 다시 설정" reopens it, and completing/skipping closes it.
   useEffect(() => {
@@ -61,7 +71,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openFilter = useCallback(() => setOpen(true), []);
 
   return (
-    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign, updateCampaign, removeCampaign }}>
+    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign, updateCampaign, removeCampaign, decisions, setDecision }}>
       {children}
       <FilterModal
         open={open}

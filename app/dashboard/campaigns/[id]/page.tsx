@@ -1,9 +1,12 @@
 "use client";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
 import { CampaignActions } from "@/components/dashboard/campaign-actions";
+import { ProposalDetail } from "@/components/dashboard/proposal-detail";
+import { scoreAll, type ScoredProposal } from "@/lib/scoring";
 import type {
   CampaignCreator,
   CampaignPost,
@@ -37,7 +40,7 @@ const STAGES = [
 ] as const;
 const DOT_OPACITY = [0.25, 0.4, 0.55, 0.75, 1];
 
-function CreatorRow({ c, onOpen }: { c: CampaignCreator; onOpen?: () => void }) {
+function CreatorRow({ c, selected, onOpen }: { c: CampaignCreator; selected?: boolean; onOpen?: () => void }) {
   const clickable = c.status === "역제안 도착" && !!c.proposalId;
   const inner = (
     <>
@@ -61,7 +64,11 @@ function CreatorRow({ c, onOpen }: { c: CampaignCreator; onOpen?: () => void }) 
   );
   const className = "flex items-center gap-3 border-b border-border px-4 py-3 last:border-0";
   return clickable ? (
-    <button type="button" onClick={onOpen} className={cn(className, "w-full text-left transition-colors hover:bg-foreground/[0.03]")}>
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(className, "w-full text-left transition-colors", selected ? "bg-muted" : "hover:bg-foreground/[0.03]")}
+    >
       {inner}
     </button>
   ) : (
@@ -113,8 +120,26 @@ function PostCard({ p }: { p: CampaignPost }) {
 export default function CampaignDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const { campaigns } = useDashboard();
+  const { campaigns, decisions, setDecision } = useDashboard();
   const c = campaigns.find((x) => x.id === id);
+
+  // Inline 역제안 상세 — shares the inbox panel + decision state (context).
+  const scored = useMemo(() => scoreAll(), []);
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
+  const [mobileDetail, setMobileDetail] = useState(false);
+  const selected: ScoredProposal | null = selectedProposalId
+    ? scored.find((s) => s.proposal.id === selectedProposalId) ?? null
+    : null;
+
+  // ESC closes the panel (desktop).
+  useEffect(() => {
+    if (!selectedProposalId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedProposalId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedProposalId]);
 
   if (!c) {
     return (
@@ -133,7 +158,8 @@ export default function CampaignDetailPage() {
   );
 
   return (
-    <div className="h-full overflow-y-auto p-6 md:p-8">
+    <div className="flex h-full">
+      <div className={cn("min-w-0 flex-1 overflow-y-auto p-6 md:p-8", mobileDetail && "hidden md:block")}>
       <div className="mx-auto w-full max-w-4xl">
         <button
           type="button"
@@ -209,15 +235,39 @@ export default function CampaignDetailPage() {
               <CreatorRow
                 key={i}
                 c={cr}
-                onOpen={() => router.push(`/dashboard/inbox?select=${cr.proposalId}`)}
+                selected={!!cr.proposalId && cr.proposalId === selectedProposalId}
+                onOpen={() => {
+                  setSelectedProposalId(cr.proposalId!);
+                  setMobileDetail(true);
+                }}
               />
             ))}
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            “역제안 도착” 크리에이터를 누르면 역제안 인박스에서 해당 제안이 열려요.
+            “역제안 도착” 크리에이터를 누르면 오른쪽에 해당 역제안 상세가 열려요.
           </p>
         </section>
       </div>
+      </div>
+
+      {/* Inline 역제안 상세 패널 (인박스 스플릿과 같은 문법) */}
+      {selected && (
+        <div
+          className={cn(
+            "min-w-0 flex-1 md:w-[460px] md:flex-none md:border-l md:border-border",
+            !mobileDetail && "hidden md:block",
+          )}
+        >
+          <ProposalDetail
+            key={selected.proposal.id}
+            item={selected}
+            decision={decisions[selected.proposal.id] ?? null}
+            onDecision={(d) => setDecision(selected.proposal.id, d)}
+            onBack={() => setMobileDetail(false)}
+            onClose={() => setSelectedProposalId(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }

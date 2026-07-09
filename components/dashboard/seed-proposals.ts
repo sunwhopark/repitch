@@ -21,6 +21,10 @@ export type SeedProposal = {
   product_name: string;
   platform: "instagram" | "youtube";
   profile_name: string;
+  // 플랫폼 프로필 외부 링크. 데모 인물은 가상이라 실제 핸들 URL로 걸면 남의
+  // 계정이 열리므로 플랫폼 홈 수준으로만 둔다. 실서비스에선 인플루언서 실제
+  // 프로필 URL이 들어간다.
+  profile_url: string;
   profile_count: number;
   selected_categories: string[];
   avg_likes?: string; // range label (IG)
@@ -69,6 +73,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "데일리 토너",
     platform: "instagram",
     profile_name: "seoyeon.skin",
+    profile_url: "https://www.instagram.com",
     profile_count: 32000,
     selected_categories: ["뷰티"],
     avg_likes: "1만-10만",
@@ -113,6 +118,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "립 세럼",
     platform: "instagram",
     profile_name: "min_v.official",
+    profile_url: "https://www.instagram.com",
     profile_count: 12000,
     selected_categories: ["뷰티"],
     avg_likes: "1천-1만",
@@ -146,6 +152,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "그래놀라 팩",
     platform: "youtube",
     profile_name: "hungry_jun",
+    profile_url: "https://www.youtube.com",
     profile_count: 88000,
     selected_categories: ["식품"],
     avg_views: "10만 이상",
@@ -184,6 +191,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "프로틴 쉐이크",
     platform: "instagram",
     profile_name: "ironbody_kim",
+    profile_url: "https://www.instagram.com",
     profile_count: 21000,
     selected_categories: ["헬스·피트니스"],
     avg_likes: "1만-10만",
@@ -225,6 +233,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "핸드크림",
     platform: "instagram",
     profile_name: "daily_hana",
+    profile_url: "https://www.instagram.com",
     profile_count: 8500,
     selected_categories: ["라이프스타일"],
     avg_likes: "1천-1만",
@@ -264,6 +273,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "무선 이어버드",
     platform: "youtube",
     profile_name: "gadget_seo",
+    profile_url: "https://www.youtube.com",
     profile_count: 54000,
     selected_categories: ["전자기기"],
     avg_views: "1만-10만",
@@ -298,6 +308,7 @@ export const SEED_PROPOSALS: SeedProposal[] = [
     product_name: "가계부 앱 프리미엄",
     platform: "youtube",
     profile_name: "savvy_luna",
+    profile_url: "https://www.youtube.com",
     profile_count: 9000,
     selected_categories: ["앱·서비스"],
     avg_views: "1만-10만",
