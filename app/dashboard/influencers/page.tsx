@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink, Search, Star, X } from "lucide-react";
+import { ChevronDown, Search, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
 import type { DashboardFilters } from "@/components/dashboard/filter-modal";
 import { scoreAll, type ScoredProposal } from "@/lib/scoring";
 import { ProposalDetail, PlatformIcon, fmt } from "@/components/dashboard/proposal-detail";
+import { InfluencerSummary } from "@/components/dashboard/influencer-summary";
 import { SEED_INFLUENCERS, type Influencer } from "@/components/dashboard/seed-influencers";
 
 type SortKey = "followers" | "avg_views" | "engagement";
@@ -41,109 +42,6 @@ function Star2({ on, onClick }: { on: boolean; onClick: (e: React.MouseEvent) =>
 }
 
 // ── Right panel: influencer summary ─────────────────────────────────
-function InfluencerSummary({
-  inf,
-  hasProposal,
-  onSeeProposal,
-  onBack,
-  onClose,
-}: {
-  inf: Influencer;
-  hasProposal: boolean;
-  onSeeProposal: () => void;
-  onBack: () => void;
-  onClose: () => void;
-}) {
-  const metrics: [string, string][] = [
-    ["팔로워", fmt(inf.followers)],
-    ["평균 조회수", fmt(inf.avg_views)],
-    ["참여율", `${inf.engagement}%`],
-    ["협업 수", `${inf.collabs}회`],
-  ];
-  const info: [string, string][] = [
-    ["카테고리", inf.category],
-    ["유형", inf.creator_type],
-    ["성별", inf.gender],
-    ["활동 지역", inf.region],
-  ];
-  return (
-    <div className="flex h-full flex-col overflow-y-auto">
-      <div className="flex-1 px-6 py-6 md:px-8">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground md:hidden"
-        >
-          <ChevronRight className="size-4 rotate-180" /> 목록
-        </button>
-
-        <div className="flex items-start gap-3 border-b border-border pb-4">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-base font-bold">
-            {inf.profile_name.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <a
-              href={inf.profile_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-lg font-bold hover:underline"
-            >
-              <span className="truncate">{inf.profile_name}</span>
-              <PlatformIcon platform={inf.platform} className="size-4 shrink-0 text-foreground/70" />
-              <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
-            </a>
-            <div className="mt-0.5 text-[13px] text-muted-foreground">
-              {inf.category} · {inf.creator_type} · {inf.gender} · {inf.region}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            className="ml-auto hidden size-8 place-items-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:grid"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        {/* Core metrics */}
-        <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {metrics.map(([l, v]) => (
-            <div key={l} className="p-4">
-              <div className="text-[11px] text-muted-foreground">{l}</div>
-              <div className="mt-1 text-xl font-extrabold tabular-nums">{v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Activity info */}
-        <div className="mt-5">
-          {info.map(([l, v]) => (
-            <div key={l} className="flex items-center justify-between gap-3 border-b border-dashed border-border py-1.5 text-[13px]">
-              <span className="text-muted-foreground">{l}</span>
-              <span className="font-medium">{v}</span>
-            </div>
-          ))}
-        </div>
-
-        <p className="mt-4 text-[13px] leading-relaxed text-foreground/80">{inf.bio}</p>
-      </div>
-
-      {hasProposal && (
-        <div className="sticky bottom-0 border-t border-border bg-background px-6 py-3 md:px-8">
-          <button
-            type="button"
-            onClick={onSeeProposal}
-            className="h-11 w-full rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
-          >
-            이 크리에이터의 역제안 보기
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function InfluencersPage() {
   const { filters, favorites, toggleFavorite, decisions, setDecision } = useDashboard();
   const scored = useMemo(() => scoreAll(), []);
@@ -362,10 +260,19 @@ export default function InfluencersPage() {
             <InfluencerSummary
               key={selectedInf.id}
               inf={selectedInf}
-              hasProposal={!!proposalItem}
-              onSeeProposal={() => setShowProposal(true)}
               onBack={() => setMobileDetail(false)}
               onClose={() => setSelectedId(null)}
+              footer={
+                proposalItem ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowProposal(true)}
+                    className="h-11 w-full rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
+                  >
+                    이 크리에이터의 역제안 보기
+                  </button>
+                ) : undefined
+              }
             />
           )}
         </div>

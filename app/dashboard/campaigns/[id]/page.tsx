@@ -6,10 +6,13 @@ import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
 import { CampaignMenu, useCampaignEditDelete } from "@/components/dashboard/campaign-actions";
 import { ProposalDetail } from "@/components/dashboard/proposal-detail";
+import { InfluencerSummary } from "@/components/dashboard/influencer-summary";
+import { SEED_INFLUENCERS } from "@/components/dashboard/seed-influencers";
 import { scoreAll } from "@/lib/scoring";
 import {
   CARRIERS,
   applicantToCreator,
+  creatorToApplicant,
   type Applicant,
   type CampaignCreator,
   type CampaignPost,
@@ -61,7 +64,7 @@ function trackUrlOf(t?: { carrier: string; number: string }) {
   return CARRIERS.find((x) => x.name === t.carrier)?.url(t.number) ?? null;
 }
 
-function CreatorRow({ c, selected, onOpen }: { c: CampaignCreator; selected?: boolean; onOpen: () => void }) {
+function CreatorRow({ c, selected, onOpen, onCancel }: { c: CampaignCreator; selected?: boolean; onOpen: () => void; onCancel: () => void }) {
   const clickable = c.status !== "미선정";
   const url = trackUrlOf(c.tracking);
   return (
@@ -101,43 +104,72 @@ function CreatorRow({ c, selected, onOpen }: { c: CampaignCreator; selected?: bo
         <div className="text-sm font-semibold tabular-nums">{fmt(c.followers)}</div>
         <div className="text-[11px] text-muted-foreground">팔로워</div>
       </div>
+      {/* 선정 취소는 아직 발송 전(선정됨)만 — 발송 이후는 제품이 나가서 취소 불가. */}
+      {c.status === "선정됨" && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onCancel(); }}
+          className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          선정 취소
+        </button>
+      )}
       <CreatorStatusBadge status={c.status} />
       <ChevronRight className={cn("size-4 shrink-0 text-muted-foreground", !clickable && "invisible")} />
     </div>
   );
 }
 
-function ApplicantRow({ a, onSelect, onHold }: { a: Applicant; onSelect: () => void; onHold: () => void }) {
-  const decided = a.status !== "검토 대기";
+function ApplicantRow({ a, selected, onOpen, onSelect, onHold, onUnhold }: {
+  a: Applicant;
+  selected: boolean;
+  onOpen: () => void;
+  onSelect: () => void;
+  onHold: () => void;
+  onUnhold: () => void;
+}) {
+  const dim = a.status === "보류";
+  const stop = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
   return (
-    <div className={cn("flex items-center gap-3 border-b border-border px-4 py-3 last:border-0", a.status === "보류" && "opacity-45")}>
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-        {a.name.charAt(0).toUpperCase()}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold">{a.name}</div>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <PlatformIcon platform={a.platform} className="size-3 shrink-0" />
-          <span className="truncate">{a.handle} · {a.category} · 참여율 {a.engagement}%</span>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      className={cn(
+        "flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 last:border-0 transition-colors",
+        selected ? "bg-muted" : "hover:bg-foreground/[0.03]",
+      )}
+    >
+      <div className={cn("flex flex-1 items-center gap-3", dim && "opacity-45")}>
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+          {a.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">{a.name}</div>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <PlatformIcon platform={a.platform} className="size-3 shrink-0" />
+            <span className="truncate">{a.handle} · {a.category} · 참여율 {a.engagement}%</span>
+          </div>
+        </div>
+        <div className="hidden shrink-0 text-right sm:block">
+          <div className="text-sm font-semibold tabular-nums">{fmt(a.followers)}</div>
+          <div className="text-[11px] text-muted-foreground">팔로워</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-lg font-extrabold tabular-nums">{a.matchScore}</div>
+          <div className="text-[11px] text-muted-foreground">매칭</div>
         </div>
       </div>
-      <div className="hidden shrink-0 text-right sm:block">
-        <div className="text-sm font-semibold tabular-nums">{fmt(a.followers)}</div>
-        <div className="text-[11px] text-muted-foreground">팔로워</div>
-      </div>
-      <div className="shrink-0 text-right">
-        <div className="text-lg font-extrabold tabular-nums">{a.matchScore}</div>
-        <div className="text-[11px] text-muted-foreground">매칭</div>
-      </div>
-      {decided ? (
-        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", a.status === "선정" ? "bg-foreground text-background" : "border border-border text-muted-foreground")}>
-          {a.status}
-        </span>
-      ) : (
+      {a.status === "검토 대기" ? (
         <div className="flex shrink-0 gap-1.5">
-          <button type="button" onClick={onHold} className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground">보류</button>
-          <button type="button" onClick={onSelect} className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background hover:bg-foreground/90">선정</button>
+          <button type="button" onClick={stop(onHold)} className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground">보류</button>
+          <button type="button" onClick={stop(onSelect)} className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background hover:bg-foreground/90">선정</button>
         </div>
+      ) : a.status === "보류" ? (
+        <button type="button" onClick={stop(onUnhold)} className="shrink-0 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground">보류 해제</button>
+      ) : (
+        <span className="shrink-0 rounded-full bg-foreground px-2 py-0.5 text-[11px] font-medium text-background">선정</span>
       )}
     </div>
   );
@@ -309,16 +341,17 @@ export default function CampaignDetailPage() {
 
   const scored = useMemo(() => scoreAll(), []);
   const [view, setView] = useState<"roster" | "applicants">("roster");
-  const [panelHandle, setPanelHandle] = useState<string | null>(null);
+  // 우측 패널: 크리에이터(발송/제안) 또는 신청자(프로필 요약).
+  const [panel, setPanel] = useState<{ kind: "creator"; handle: string } | { kind: "applicant"; id: string } | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
 
   // ESC closes the panel (desktop).
   useEffect(() => {
-    if (!panelHandle) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPanelHandle(null); };
+    if (!panel) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPanel(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panelHandle]);
+  }, [panel]);
 
   if (!c) {
     return (
@@ -331,7 +364,9 @@ export default function CampaignDetailPage() {
 
   const applicants = [...(c.applicants ?? [])].sort((a, b) => b.matchScore - a.matchScore);
   const pending = applicants.filter((a) => a.status === "검토 대기").length;
-  const selectedCreator = panelHandle ? c.creators.find((cr) => cr.handle === panelHandle) ?? null : null;
+  const selectedCreator = panel?.kind === "creator" ? c.creators.find((cr) => cr.handle === panel.handle) ?? null : null;
+  const selectedApplicant = panel?.kind === "applicant" ? applicants.find((a) => a.id === panel.id) ?? null : null;
+  const applicantInf = selectedApplicant ? SEED_INFLUENCERS.find((i) => i.id === selectedApplicant.id) ?? null : null;
   const proposalItem =
     selectedCreator?.status === "역제안 도착" && selectedCreator.proposalId
       ? scored.find((s) => s.proposal.id === selectedCreator.proposalId) ?? null
@@ -344,7 +379,11 @@ export default function CampaignDetailPage() {
 
   const openCreator = (cr: CampaignCreator) => {
     if (cr.status === "미선정") return;
-    setPanelHandle(cr.handle);
+    setPanel({ kind: "creator", handle: cr.handle });
+    setMobileDetail(true);
+  };
+  const openApplicant = (a: Applicant) => {
+    setPanel({ kind: "applicant", id: a.id });
     setMobileDetail(true);
   };
 
@@ -361,6 +400,32 @@ export default function CampaignDetailPage() {
       ...cur,
       applicants: (cur.applicants ?? []).map((x) => (x.id === a.id ? { ...x, status: "보류" as const } : x)),
     }));
+
+  const unholdApplicant = (a: Applicant) =>
+    mutateCampaign(c.id, (cur) => ({
+      ...cur,
+      applicants: (cur.applicants ?? []).map((x) => (x.id === a.id ? { ...x, status: "검토 대기" as const } : x)),
+    }));
+
+  // 선정 취소 — 크리에이터를 로스터에서 빼고 신청자(검토 대기)로 되돌린다.
+  // (선정됨만; 발송 이후는 버튼 미노출.)
+  const unselectCreator = (handle: string) => {
+    setPanel((p) => (p?.kind === "creator" && p.handle === handle ? null : p));
+    mutateCampaign(c.id, (cur) => {
+      const cr = cur.creators.find((x) => x.handle === handle);
+      if (!cr || cr.status !== "선정됨") return cur;
+      const apps = cur.applicants ?? [];
+      const known = apps.some((a) => a.handle === handle);
+      return {
+        ...cur,
+        creators: cur.creators.filter((x) => x.handle !== handle),
+        applicants: known
+          ? apps.map((a) => (a.handle === handle ? { ...a, status: "검토 대기" as const } : a))
+          : [...apps, creatorToApplicant(cr)],
+        funnel: { ...cur.funnel, selected: Math.max(0, cur.funnel.selected - 1) },
+      };
+    });
+  };
 
   const registerShipment = (handle: string, carrier: string, num: string) => {
     mutateCampaign(c.id, (cur) => ({
@@ -458,11 +523,25 @@ export default function CampaignDetailPage() {
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               {view === "roster"
                 ? c.creators.map((cr, i) => (
-                    <CreatorRow key={cr.handle + i} c={cr} selected={cr.handle === panelHandle} onOpen={() => openCreator(cr)} />
+                    <CreatorRow
+                      key={cr.handle + i}
+                      c={cr}
+                      selected={panel?.kind === "creator" && panel.handle === cr.handle}
+                      onOpen={() => openCreator(cr)}
+                      onCancel={() => unselectCreator(cr.handle)}
+                    />
                   ))
                 : applicants.length > 0
                   ? applicants.map((a) => (
-                      <ApplicantRow key={a.id} a={a} onSelect={() => selectApplicant(a)} onHold={() => holdApplicant(a)} />
+                      <ApplicantRow
+                        key={a.id}
+                        a={a}
+                        selected={panel?.kind === "applicant" && panel.id === a.id}
+                        onOpen={() => openApplicant(a)}
+                        onSelect={() => selectApplicant(a)}
+                        onHold={() => holdApplicant(a)}
+                        onUnhold={() => unholdApplicant(a)}
+                      />
                     ))
                   : <p className="px-4 py-8 text-center text-sm text-muted-foreground">신청자가 없어요.</p>}
             </div>
@@ -475,27 +554,67 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      {/* Right panel — 역제안 상세 OR 발송·배송 */}
-      {selectedCreator && (
+      {/* Right panel — 역제안 상세 / 발송·배송 / 신청자 프로필 */}
+      {(selectedCreator || (selectedApplicant && applicantInf)) && (
         <div className={cn("min-w-0 flex-1 md:w-[460px] md:flex-none md:border-l md:border-border", !mobileDetail && "hidden md:block")}>
-          {proposalItem ? (
-            <ProposalDetail
-              key={proposalItem.proposal.id}
-              item={proposalItem}
-              decision={decisions[proposalItem.proposal.id] ?? null}
-              onDecision={(d) => setDecision(proposalItem.proposal.id, d)}
+          {selectedCreator ? (
+            proposalItem ? (
+              <ProposalDetail
+                key={proposalItem.proposal.id}
+                item={proposalItem}
+                decision={decisions[proposalItem.proposal.id] ?? null}
+                onDecision={(d) => setDecision(proposalItem.proposal.id, d)}
+                onBack={() => setMobileDetail(false)}
+                onClose={() => setPanel(null)}
+              />
+            ) : (
+              <ShippingPanel
+                key={selectedCreator.handle}
+                cr={selectedCreator}
+                onRegister={(carrier, num) => registerShipment(selectedCreator.handle, carrier, num)}
+                onBack={() => setMobileDetail(false)}
+                onClose={() => setPanel(null)}
+              />
+            )
+          ) : selectedApplicant && applicantInf ? (
+            <InfluencerSummary
+              key={selectedApplicant.id}
+              inf={applicantInf}
+              matchScore={selectedApplicant.matchScore}
               onBack={() => setMobileDetail(false)}
-              onClose={() => setPanelHandle(null)}
+              onClose={() => setPanel(null)}
+              footer={
+                selectedApplicant.status === "검토 대기" ? (
+                  <div className="flex gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => { holdApplicant(selectedApplicant); setPanel(null); }}
+                      className="h-11 flex-1 rounded-full border border-border text-sm font-bold text-muted-foreground hover:text-foreground"
+                    >
+                      보류
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { selectApplicant(selectedApplicant); setPanel(null); }}
+                      className="h-11 flex-[1.4] rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
+                    >
+                      선정
+                    </button>
+                  </div>
+                ) : selectedApplicant.status === "보류" ? (
+                  <button
+                    type="button"
+                    onClick={() => { unholdApplicant(selectedApplicant); setPanel(null); }}
+                    className="h-11 w-full rounded-full border border-border text-sm font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    보류 해제
+                  </button>
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground">이미 선정된 신청자예요.</p>
+                )
+              }
             />
-          ) : (
-            <ShippingPanel
-              key={selectedCreator.handle}
-              cr={selectedCreator}
-              onRegister={(carrier, num) => registerShipment(selectedCreator.handle, carrier, num)}
-              onBack={() => setMobileDetail(false)}
-              onClose={() => setPanelHandle(null)}
-            />
-          )}
+          ) : null}
         </div>
       )}
 

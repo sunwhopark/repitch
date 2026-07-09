@@ -233,6 +233,22 @@ export function applicantToCreator(a: Applicant): CampaignCreator {
     shipping: dummyShipping(a.name),
   };
 }
+// 선정 취소 → 크리에이터를 다시 신청자(검토 대기)로. 원본 신청자 레코드가 없던
+// (시드에서 바로 선정됨) 크리에이터도 인플루언서 DB에서 복원한다.
+export function creatorToApplicant(cr: CampaignCreator): Applicant {
+  const inf = SEED_INFLUENCERS.find((i) => `@${i.profile_name}` === cr.handle);
+  return {
+    id: inf?.id ?? cr.handle,
+    name: inf?.profile_name ?? cr.name,
+    handle: cr.handle,
+    platform: cr.platform,
+    followers: cr.followers,
+    category: inf?.category ?? "뷰티",
+    engagement: inf?.engagement ?? 0,
+    matchScore: inf ? matchScore(inf, "뷰티") : 60,
+    status: "검토 대기",
+  };
+}
 
 // 진행 중 캠페인별 신청자(인플루언서 DB에서 재사용, 각 캠페인 크리에이터와 중복 없이).
 const APPLICANT_IDS: Record<string, string[]> = {
