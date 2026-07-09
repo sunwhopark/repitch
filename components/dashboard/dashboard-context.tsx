@@ -27,6 +27,9 @@ type DashboardCtx = {
   // 역제안 응답 상태 — 인박스와 캠페인 상세 패널이 공유(양쪽 동기화).
   decisions: Record<string, Decision>;
   setDecision: (id: string, d: Decision) => void;
+  // 인플루언서 DB 관심 표시(메모리) — 페이지 이동에도 유지.
+  favorites: string[];
+  toggleFavorite: (id: string) => void;
 };
 
 const Ctx = createContext<DashboardCtx | null>(null);
@@ -62,6 +65,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const toggleFavorite = useCallback(
+    (id: string) =>
+      setFavorites((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
+    [],
+  );
+
   // Demo: no persistence — the filter modal auto-opens on first entry each
   // session; "필터 다시 설정" reopens it, and completing/skipping closes it.
   useEffect(() => {
@@ -71,7 +81,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openFilter = useCallback(() => setOpen(true), []);
 
   return (
-    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign, updateCampaign, removeCampaign, decisions, setDecision }}>
+    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign, updateCampaign, removeCampaign, decisions, setDecision, favorites, toggleFavorite }}>
       {children}
       <FilterModal
         open={open}

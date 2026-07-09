@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
-import { CampaignActions } from "@/components/dashboard/campaign-actions";
+import { CampaignMenu, useCampaignEditDelete } from "@/components/dashboard/campaign-actions";
 import { ProposalDetail } from "@/components/dashboard/proposal-detail";
 import { scoreAll, type ScoredProposal } from "@/lib/scoring";
 import type {
@@ -121,6 +121,7 @@ export default function CampaignDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { campaigns, decisions, setDecision } = useDashboard();
+  const { startEdit, startDelete, modals } = useCampaignEditDelete(() => router.push("/dashboard/campaigns"));
   const c = campaigns.find((x) => x.id === id);
 
   // Inline 역제안 상세 — shares the inbox panel + decision state (context).
@@ -181,7 +182,9 @@ export default function CampaignDetailPage() {
               {c.funnel.applied}명 크리에이터 신청 · {c.period} · {c.status}
             </p>
           </div>
-          <CampaignActions campaign={c} onDeleted={() => router.push("/dashboard/campaigns")} className="mt-1" />
+          <div className="mt-1">
+            <CampaignMenu campaign={c} onEdit={() => startEdit(c)} onDelete={() => startDelete(c)} />
+          </div>
         </div>
 
         {/* Funnel */}
@@ -268,6 +271,8 @@ export default function CampaignDetailPage() {
           />
         </div>
       )}
+
+      {modals}
     </div>
   );
 }

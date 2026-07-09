@@ -15,8 +15,13 @@ import {
 
 // ⋯ dropdown (same overlay+absolute pattern as the sidebar WorkspaceSwitcher).
 // Seed campaigns get a disabled marker with a tooltip — they stay fixed so the
-// home stat + inbox deep links keep working.
-function Menu({ campaign, onEdit, onDelete }: { campaign: Campaign; onEdit: () => void; onDelete: () => void }) {
+// home stat + inbox deep links keep working. The menu only fires callbacks; the
+// edit/delete modals are hosted once per page via useCampaignEditDelete.
+export function CampaignMenu({ campaign, onEdit, onDelete }: {
+  campaign: Campaign;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   if (!campaign.custom) {
@@ -69,7 +74,7 @@ function Menu({ campaign, onEdit, onDelete }: { campaign: Campaign; onEdit: () =
   );
 }
 
-function ConfirmDelete({ campaign, onOpenChange, onConfirm }: {
+function ConfirmDeleteDialog({ campaign, onOpenChange, onConfirm }: {
   campaign: Campaign | null;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
@@ -104,38 +109,39 @@ function ConfirmDelete({ campaign, onOpenChange, onConfirm }: {
   );
 }
 
-export function CampaignActions({ campaign, onDeleted, className }: {
-  campaign: Campaign;
-  onDeleted?: () => void;
-  className?: string;
-}) {
+// Page-level single-instance host for the edit wizard + delete confirm. The
+// list previously mounted one modal per card; this keeps a single instance and
+// just tracks which campaign is being acted on. `modals` is rendered once by
+// the page; startEdit/startDelete are wired to each row's CampaignMenu.
+export function useCampaignEditDelete(onDeleted?: (c: Campaign) => void) {
   const { updateCampaign, removeCampaign } = useDashboard();
-  const [editing, setEditing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState<Campaign | null>(null);
+  const [deleting, setDeleting] = useState<Campaign | null>(null);
 
-  return (
-    <div className={cn(className)}>
-      <Menu campaign={campaign} onEdit={() => setEditing(true)} onDelete={() => setConfirming(true)} />
-
+  const modals = (
+    <>
       <CreateCampaignModal
-        open={editing}
-        onOpenChange={setEditing}
-        initial={campaign}
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
+        initial={editing ?? undefined}
         onSubmit={(c) => {
           updateCampaign(c);
-          setEditing(false);
+          setEditing(null);
         }}
       />
-
-      <ConfirmDelete
-        campaign={confirming ? campaign : null}
-        onOpenChange={setConfirming}
+      <ConfirmDeleteDialog
+        campaign={deleting}
+        onOpenChange={(o) => { if (!o) setDeleting(null); }}
         onConfirm={() => {
-          removeCampaign(campaign.id);
-          setConfirming(false);
-          onDeleted?.();
+          if (!deleting) return;
+          const d = deleting;
+          removeCampaign(d.id);
+          setDeleting(null);
+          onDeleted?.(d);
         }}
       />
-    </div>
+    </>
   );
+
+  return { startEdit: setEditing, startDelete: setDeleting, modals };
 }

@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
 import type { Campaign } from "@/components/dashboard/seed-campaigns";
-import { CampaignActions } from "@/components/dashboard/campaign-actions";
+import { CampaignMenu, useCampaignEditDelete } from "@/components/dashboard/campaign-actions";
 import { CreateCampaignModal } from "@/components/ui/create-campaign-modal";
 
 function StatusBadge({ status }: { status: Campaign["status"] }) {
@@ -22,7 +22,13 @@ function StatusBadge({ status }: { status: Campaign["status"] }) {
   );
 }
 
-function CampaignCard({ c, highlight, onOpen }: { c: Campaign; highlight: boolean; onOpen: () => void }) {
+function CampaignCard({ c, highlight, onOpen, onEdit, onDelete }: {
+  c: Campaign;
+  highlight: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   return (
     <div
       id={`campaign-${c.id}`}
@@ -44,7 +50,7 @@ function CampaignCard({ c, highlight, onOpen }: { c: Campaign; highlight: boolea
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <StatusBadge status={c.status} />
-          <CampaignActions campaign={c} />
+          <CampaignMenu campaign={c} onEdit={onEdit} onDelete={onDelete} />
         </div>
       </div>
       <div className="flex gap-4 text-xs text-muted-foreground">
@@ -56,12 +62,14 @@ function CampaignCard({ c, highlight, onOpen }: { c: Campaign; highlight: boolea
   );
 }
 
-function Section({ id, title, items, highlightId, onOpen }: {
+function Section({ id, title, items, highlightId, onOpen, onEdit, onDelete }: {
   id: string;
   title: string;
   items: Campaign[];
   highlightId: string | null;
   onOpen: (id: string) => void;
+  onEdit: (c: Campaign) => void;
+  onDelete: (c: Campaign) => void;
 }) {
   return (
     <section id={id} className="scroll-mt-4">
@@ -74,7 +82,14 @@ function Section({ id, title, items, highlightId, onOpen }: {
       {items.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((c) => (
-            <CampaignCard key={c.id} c={c} highlight={c.id === highlightId} onOpen={() => onOpen(c.id)} />
+            <CampaignCard
+              key={c.id}
+              c={c}
+              highlight={c.id === highlightId}
+              onOpen={() => onOpen(c.id)}
+              onEdit={() => onEdit(c)}
+              onDelete={() => onDelete(c)}
+            />
           ))}
         </div>
       ) : (
@@ -89,6 +104,7 @@ function CampaignsInner() {
   const searchParams = useSearchParams();
   const status = searchParams.get("status"); // "active" | "ended" | null
   const { campaigns, addCampaign } = useDashboard();
+  const { startEdit, startDelete, modals } = useCampaignEditDelete();
   const [createOpen, setCreateOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -136,13 +152,15 @@ function CampaignsInner() {
 
         <div className="mt-8 space-y-10">
           {showActive && (
-            <Section id="active" title="진행 중" items={active} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} />
+            <Section id="active" title="진행 중" items={active} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} onEdit={startEdit} onDelete={startDelete} />
           )}
           {showEnded && (
-            <Section id="ended" title="종료" items={ended} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} />
+            <Section id="ended" title="종료" items={ended} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} onEdit={startEdit} onDelete={startDelete} />
           )}
         </div>
       </div>
+
+      {modals}
 
       <CreateCampaignModal
         open={createOpen}
