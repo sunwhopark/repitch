@@ -351,8 +351,8 @@ const ROUTE_BY_ID: Record<string, string> = {
   inbox: "/dashboard/inbox",
   influencers: "/dashboard/influencers",
   settlement: "/dashboard/settlement",
-  "c-active": "/dashboard/campaigns",
-  "c-ended": "/dashboard/campaigns",
+  "c-active": "/dashboard/campaigns#active",
+  "c-ended": "/dashboard/campaigns#ended",
 };
 
 const TITLE_BY_ID: Record<string, string> = {

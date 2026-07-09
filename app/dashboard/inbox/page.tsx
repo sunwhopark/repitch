@@ -416,6 +416,15 @@ export default function InboxPage() {
   const [showExcluded, setShowExcluded] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
 
+  // Deep link from a campaign creator ("역제안 도착"): /dashboard/inbox?select=<id>.
+  useEffect(() => {
+    const sel = new URLSearchParams(window.location.search).get("select");
+    if (sel) {
+      setSelectedId(sel);
+      setMobileDetail(true);
+    }
+  }, []);
+
   // No auto-select. Only clear a selection that got filtered out.
   useEffect(() => {
     if (selectedId && !visible.some((v) => v.proposal.id === selectedId)) {
