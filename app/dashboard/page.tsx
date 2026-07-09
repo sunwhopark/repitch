@@ -99,23 +99,25 @@ function ChartRow({
   title,
   subtitle,
   legend,
+  height,
   children,
 }: {
   title: string;
   subtitle: string;
   legend?: React.ReactNode;
+  height: number;
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-t border-border p-4 first:border-t-0 md:px-5">
+    <div className="border-t border-border px-4 py-3 first:border-t-0 md:px-5">
       <div className="flex items-baseline justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
+          <h3 className="text-sm font-semibold leading-tight">{title}</h3>
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
         {legend}
       </div>
-      <div className="mt-2 h-[110px]">
+      <div className="mt-1.5" style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           {children as React.ReactElement}
         </ResponsiveContainer>
@@ -138,28 +140,28 @@ function Card({ title, subtitle, children }: {
   );
 }
 
-const MARGIN = { top: 6, right: 8, bottom: 0, left: 8 };
+const MARGIN = { top: 4, right: 8, bottom: 0, left: 8 };
 
 export default function DashboardHome() {
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
       <div className="mx-auto w-full max-w-5xl">
         <h1 className="text-xl font-semibold tracking-tight md:text-2xl">대시보드</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">최근 30일 캠페인 성과 요약이에요.</p>
+        <p className="mt-1 text-sm text-muted-foreground">최근 30일 캠페인 성과 요약이에요.</p>
 
         {/* Stat row — dark hero card + 4 metrics, bordered grid */}
-        <div className="mt-6 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">
-          <div className="relative col-span-2 bg-foreground p-5 text-background md:col-span-1">
+        <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">
+          <div className="relative col-span-2 bg-foreground p-4 text-background md:col-span-1">
             <div className="text-sm opacity-70">{HERO_CARD.label}</div>
-            <div className="mt-2 text-3xl font-bold tracking-tight">{HERO_CARD.value}</div>
-            <div className="mt-3 text-xs opacity-70">{HERO_CARD.caption}</div>
-            <Sparkline data={HERO_CARD.spark} className="absolute bottom-4 right-4 h-6 w-16 text-background/70" />
+            <div className="mt-1.5 text-2xl font-bold tracking-tight">{HERO_CARD.value}</div>
+            <div className="mt-2 text-xs opacity-70">{HERO_CARD.caption}</div>
+            <Sparkline data={HERO_CARD.spark} className="absolute bottom-3 right-3 h-5 w-14 text-background/70" />
           </div>
           {STAT_CARDS.map((s) => (
-            <div key={s.label} className="p-5">
+            <div key={s.label} className="p-4">
               <div className="text-sm text-muted-foreground">{s.label}</div>
-              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{s.value}</div>
-              <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+              <div className="mt-1.5 text-xl font-bold tracking-tight tabular-nums">{s.value}</div>
+              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                 {s.up ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                 <span className="font-medium text-foreground">{s.deltaLabel}</span>
                 <span>{s.caption}</span>
@@ -169,8 +171,8 @@ export default function DashboardHome() {
         </div>
 
         {/* Time-series stack — shared 30-day axis */}
-        <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
-          <ChartRow title="도달 추이" subtitle="최근 30일 일별 도달 (더미)">
+        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
+          <ChartRow title="도달 추이" subtitle="최근 30일 일별 도달 (더미)" height={120}>
             <AreaChart data={DAILY} margin={MARGIN}>
               <defs>
                 <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
@@ -185,10 +187,10 @@ export default function DashboardHome() {
             </AreaChart>
           </ChartRow>
 
-          <ChartRow title="역제안 유입" subtitle="일별 도착한 역제안 건수 (더미)">
+          <ChartRow title="역제안 유입" subtitle="일별 도착한 역제안 건수 (더미)" height={70}>
             <BarChart data={DAILY} margin={MARGIN}>
               <XAxis dataKey="date" hide />
-              <YAxis hide allowDecimals={false} />
+              <YAxis hide allowDecimals={false} domain={[0, 2]} />
               <Tooltip cursor={{ fill: "var(--color-muted)" }} content={<ProposalTooltip />} />
               <Bar dataKey="proposals" fill={FG} radius={[2, 2, 0, 0]} maxBarSize={9} />
             </BarChart>
@@ -197,6 +199,7 @@ export default function DashboardHome() {
           <ChartRow
             title="콘텐츠 게시량"
             subtitle="브랜드 태그 콘텐츠 · IG/YT (더미)"
+            height={100}
             legend={
               <div className="flex gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-foreground" /> IG</span>
@@ -216,7 +219,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Bottom — ranking + activity */}
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Card title="인플루언서 랭킹" subtitle="이번 달 성과 기준 Top 5">
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
@@ -232,16 +235,16 @@ export default function DashboardHome() {
                 <tbody>
                   {INFLUENCER_RANKING.map((r) => (
                     <tr key={r.profile_name} className="border-b border-border last:border-0">
-                      <td className="py-2.5 pr-2 font-semibold tabular-nums text-muted-foreground">{r.rank}</td>
-                      <td className="py-2.5 pr-2">
+                      <td className="py-2 pr-2 font-semibold tabular-nums text-muted-foreground">{r.rank}</td>
+                      <td className="py-2 pr-2">
                         <div className="flex items-center gap-2">
                           <PlatformIcon platform={r.platform} className="size-3.5 shrink-0 text-foreground/70" />
                           <span className="truncate font-medium">{r.profile_name}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 pr-2 text-right tabular-nums text-muted-foreground">{fmtCount(r.followers)}</td>
-                      <td className="py-2.5 pr-2 text-right tabular-nums">{fmtCount(r.reach)}</td>
-                      <td className="py-2.5 text-right tabular-nums">{r.engagement}%</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">{fmtCount(r.followers)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{fmtCount(r.reach)}</td>
+                      <td className="py-2 text-right tabular-nums">{r.engagement}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -250,10 +253,10 @@ export default function DashboardHome() {
           </Card>
 
           <Card title="최근 활동" subtitle="워크스페이스 활동 피드">
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-3 space-y-2.5">
               {RECENT_ACTIVITY.map((a, i) => (
                 <li key={i} className="flex items-center gap-3 text-sm">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                     {a.profile.charAt(0).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1 truncate">
