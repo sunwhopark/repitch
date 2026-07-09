@@ -21,18 +21,6 @@ const MUTED = "var(--color-muted-foreground)";
 const AXIS = { tickLine: false, axisLine: false, tick: { fill: MUTED, fontSize: 11 } } as const;
 const MARGIN = { top: 6, right: 8, bottom: 0, left: 8 };
 
-function Sparkline({ values, className }: { values: number[]; className?: string }) {
-  const w = 80, h = 26;
-  const max = Math.max(...values), min = Math.min(...values);
-  const span = max - min || 1;
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / span) * (h - 2) - 1}`).join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" preserveAspectRatio="none" aria-hidden>
-      <polyline points={pts} />
-    </svg>
-  );
-}
-
 type TipProps = { active?: boolean; label?: string; payload?: { value: number; dataKey: string }[] };
 function tipBox(children: React.ReactNode) {
   return <div className="rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-md">{children}</div>;
@@ -176,7 +164,6 @@ export default function ProductDetailPage() {
   const reviewGain = p.series.reduce((a, s) => a + s.reviews, 0);
   const contentTotal = p.series.reduce((a, s) => a + s.ig + s.yt, 0);
   const contentRate = Math.round(contentTotal / 3); // 3개월
-  const rankInverted = p.series.map((s) => -s.rank);
 
   const related = p.events
     .filter((e) => e.n >= 2)
@@ -234,13 +221,12 @@ export default function ProductDetailPage() {
 
         {/* Stat row — dark hero (카테고리 순위) + 4 metrics */}
         <div className="mt-5 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">
-          <div className="relative col-span-2 bg-foreground p-4 text-background md:col-span-1">
+          <div className="col-span-2 bg-foreground p-4 text-background md:col-span-1">
             <div className="text-sm opacity-70">카테고리 순위</div>
             <div className="mt-1.5 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight tabular-nums">
               #{firstRank}<span className="text-base opacity-70">→</span>#{bestRank}
             </div>
             <div className="mt-2 text-xs opacity-70">첫 관측 → 최고</div>
-            <Sparkline values={rankInverted} className="absolute bottom-3 right-3 h-5 w-16 text-background/70" />
           </div>
           <StatCard label="리뷰 증가" value={`+${reviewGain.toLocaleString()}`} caption="최근 90일" />
           <StatCard label="콘텐츠 속도" value={`${contentRate}/월`} caption="게시량 기준" />
