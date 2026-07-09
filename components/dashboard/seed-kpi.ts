@@ -2,6 +2,15 @@
 // (pre-launch demo). Replace each block with real queries later.
 import { SEED_PROPOSALS } from "@/components/dashboard/seed-proposals";
 
+// 다크 강조 카드 — repitch 핵심 지표(이번 달 도착한 역제안). 미니 스파크라인은
+// 7월 누적 역제안 건수(더미).
+export const HERO_CARD = {
+  label: "이번 달 역제안",
+  value: "7건",
+  caption: "지난달 4건 → 이번 달 7건",
+  spark: [1, 1, 2, 2, 3, 4, 4, 5, 6, 7],
+};
+
 export type StatCard = {
   label: string;
   value: string;
@@ -14,29 +23,52 @@ export const STAT_CARDS: StatCard[] = [
   { label: "진행 중 캠페인", value: "3", deltaLabel: "1건", up: true, caption: "지난달 대비" },
   { label: "이번 달 도달", value: "128.4만", deltaLabel: "12.4%", up: true, caption: "지난달 대비" },
   { label: "평균 참여율", value: "4.2%", deltaLabel: "0.3%p", up: false, caption: "지난달 대비" },
-  { label: "총 광고비 집행", value: "1,240만원", deltaLabel: "8.7%", up: true, caption: "지난달 대비" },
+  { label: "광고비 집행", value: "1,240만원", deltaLabel: "8.7%", up: true, caption: "지난달 대비" },
 ];
 
-// 도달 추이 — 최근 7일 일별 도달(더미).
-export const REACH_TREND = [
-  { day: "월", reach: 182000 },
-  { day: "화", reach: 168000 },
-  { day: "수", reach: 205000 },
-  { day: "목", reach: 231000 },
-  { day: "금", reach: 258000 },
-  { day: "토", reach: 224000 },
-  { day: "일", reach: 289000 },
-];
+// 최근 30일 일별 시계열(더미) — 세 차트가 같은 기간축을 공유한다.
+//   reach     : 일별 도달
+//   proposals : 역제안 유입(하루 0~2건 수준)
+//   ig / yt   : 브랜드 태그 콘텐츠 게시량(플랫폼별)
+export type DailyPoint = {
+  date: string;
+  reach: number;
+  proposals: number;
+  ig: number;
+  yt: number;
+};
 
-// 플랫폼별 성과 — 일별 매칭 성사 건수(더미), IG/YT 두 계열.
-export const PLATFORM_PERF = [
-  { date: "4/7", instagram: 12, youtube: 6 },
-  { date: "4/8", instagram: 14, youtube: 7 },
-  { date: "4/9", instagram: 13, youtube: 7 },
-  { date: "4/10", instagram: 18, youtube: 9 },
-  { date: "4/11", instagram: 20, youtube: 10 },
-  { date: "4/12", instagram: 17, youtube: 11 },
-  { date: "4/13", instagram: 21, youtube: 12 },
+export const DAILY: DailyPoint[] = [
+  { date: "6/11", reach: 118000, proposals: 0, ig: 2, yt: 1 },
+  { date: "6/12", reach: 132000, proposals: 0, ig: 1, yt: 0 },
+  { date: "6/13", reach: 126000, proposals: 0, ig: 3, yt: 1 },
+  { date: "6/14", reach: 141000, proposals: 1, ig: 2, yt: 2 },
+  { date: "6/15", reach: 155000, proposals: 0, ig: 4, yt: 1 },
+  { date: "6/16", reach: 138000, proposals: 0, ig: 1, yt: 0 },
+  { date: "6/17", reach: 149000, proposals: 0, ig: 2, yt: 2 },
+  { date: "6/18", reach: 162000, proposals: 0, ig: 3, yt: 1 },
+  { date: "6/19", reach: 171000, proposals: 0, ig: 5, yt: 2 },
+  { date: "6/20", reach: 158000, proposals: 1, ig: 2, yt: 1 },
+  { date: "6/21", reach: 167000, proposals: 0, ig: 4, yt: 1 },
+  { date: "6/22", reach: 184000, proposals: 0, ig: 3, yt: 2 },
+  { date: "6/23", reach: 176000, proposals: 0, ig: 2, yt: 3 },
+  { date: "6/24", reach: 191000, proposals: 0, ig: 5, yt: 2 },
+  { date: "6/25", reach: 205000, proposals: 0, ig: 4, yt: 1 },
+  { date: "6/26", reach: 198000, proposals: 1, ig: 3, yt: 3 },
+  { date: "6/27", reach: 212000, proposals: 0, ig: 6, yt: 2 },
+  { date: "6/28", reach: 224000, proposals: 0, ig: 4, yt: 4 },
+  { date: "6/29", reach: 216000, proposals: 0, ig: 3, yt: 3 },
+  { date: "6/30", reach: 231000, proposals: 0, ig: 5, yt: 2 },
+  { date: "7/1", reach: 245000, proposals: 1, ig: 4, yt: 4 },
+  { date: "7/2", reach: 238000, proposals: 0, ig: 6, yt: 3 },
+  { date: "7/3", reach: 252000, proposals: 1, ig: 5, yt: 5 },
+  { date: "7/4", reach: 268000, proposals: 0, ig: 7, yt: 4 },
+  { date: "7/5", reach: 259000, proposals: 1, ig: 6, yt: 3 },
+  { date: "7/6", reach: 274000, proposals: 1, ig: 5, yt: 5 },
+  { date: "7/7", reach: 288000, proposals: 0, ig: 8, yt: 4 },
+  { date: "7/8", reach: 279000, proposals: 1, ig: 6, yt: 6 },
+  { date: "7/9", reach: 296000, proposals: 1, ig: 7, yt: 5 },
+  { date: "7/10", reach: 311000, proposals: 1, ig: 9, yt: 4 },
 ];
 
 // 인플루언서 랭킹 Top 5 — 인박스 시드 프로필 재사용 + 더미 도달/참여율.

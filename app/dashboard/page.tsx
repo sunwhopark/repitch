@@ -1,11 +1,11 @@
 "use client";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,15 +13,16 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import {
+  HERO_CARD,
   STAT_CARDS,
-  REACH_TREND,
-  PLATFORM_PERF,
+  DAILY,
   INFLUENCER_RANKING,
   RECENT_ACTIVITY,
 } from "@/components/dashboard/seed-kpi";
 
 const FG = "var(--color-foreground)";
 const MUTED = "var(--color-muted-foreground)";
+const AXIS = { tickLine: false, axisLine: false, tick: { fill: MUTED, fontSize: 11 } } as const;
 
 function PlatformIcon({ platform, className }: { platform: string; className?: string }) {
   return platform === "instagram" ? (
@@ -38,56 +39,106 @@ function PlatformIcon({ platform, className }: { platform: string; className?: s
   );
 }
 
+function Sparkline({ data, className }: { data: number[]; className?: string }) {
+  const w = 72, h = 26;
+  const max = Math.max(...data), min = Math.min(...data);
+  const span = max - min || 1;
+  const pts = data
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / span) * (h - 2) - 1}`)
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" aria-hidden>
+      <polyline points={pts} />
+    </svg>
+  );
+}
+
 const fmtCount = (n: number) =>
   n >= 10000 ? `${(n / 10000).toFixed(1)}만` : n.toLocaleString();
 
-function ReachTooltip({ active, payload }: { active?: boolean; payload?: { value: number }[] }) {
+type TipProps = {
+  active?: boolean;
+  label?: string;
+  payload?: { value: number; dataKey: string }[];
+};
+
+function ReachTooltip({ active, payload, label }: TipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-md">
-      <span className="opacity-60">도달</span>{" "}
+      <span className="opacity-60">{label} · 도달</span>{" "}
       <span className="font-semibold">{fmtCount(payload[0].value)}</span>
     </div>
   );
 }
 
-function PerfTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number; dataKey: string }[];
-  label?: string;
-}) {
+function ProposalTooltip({ active, payload, label }: TipProps) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-md">
-      <div className="mb-1 opacity-60">{label}</div>
-      {payload.map((p) => (
-        <div key={p.dataKey} className="flex items-center justify-between gap-3">
-          <span className="opacity-80">{p.dataKey === "instagram" ? "Instagram" : "YouTube"}</span>
-          <span className="font-semibold">{p.value}건</span>
-        </div>
-      ))}
+    <div className="rounded-lg bg-foreground px-3 py-1.5 text-xs text-background shadow-md">
+      <span className="opacity-60">{label} · 역제안</span>{" "}
+      <span className="font-semibold">{payload[0].value}건</span>
     </div>
   );
 }
 
-function Card({ title, subtitle, children, className }: {
+function ContentTooltip({ active, payload, label }: TipProps) {
+  if (!active || !payload?.length) return null;
+  const val = (k: string) => payload.find((p) => p.dataKey === k)?.value ?? 0;
+  return (
+    <div className="rounded-lg bg-foreground px-3 py-2 text-xs text-background shadow-md">
+      <div className="mb-1 opacity-60">{label}</div>
+      <div className="flex items-center justify-between gap-3"><span className="opacity-80">Instagram</span><span className="font-semibold">{val("ig")}건</span></div>
+      <div className="flex items-center justify-between gap-3"><span className="opacity-80">YouTube</span><span className="font-semibold">{val("yt")}건</span></div>
+    </div>
+  );
+}
+
+/** One row of the shared-axis time-series stack. */
+function ChartRow({
+  title,
+  subtitle,
+  legend,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  legend?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-t border-border p-4 first:border-t-0 md:px-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">{title}</h3>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        {legend}
+      </div>
+      <div className="mt-2 h-[110px]">
+        <ResponsiveContainer width="100%" height="100%">
+          {children as React.ReactElement}
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, subtitle, children }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className="rounded-xl border border-border bg-card p-5">
       <h2 className="text-sm font-bold">{title}</h2>
       {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
       {children}
     </div>
   );
 }
+
+const MARGIN = { top: 6, right: 8, bottom: 0, left: 8 };
 
 export default function DashboardHome() {
   return (
@@ -96,12 +147,18 @@ export default function DashboardHome() {
         <h1 className="text-xl font-semibold tracking-tight md:text-2xl">대시보드</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">최근 30일 캠페인 성과 요약이에요.</p>
 
-        {/* Stat cards — bordered grid */}
-        <div className="mt-6 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-4 md:divide-y-0">
+        {/* Stat row — dark hero card + 4 metrics, bordered grid */}
+        <div className="mt-6 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">
+          <div className="relative col-span-2 bg-foreground p-5 text-background md:col-span-1">
+            <div className="text-sm opacity-70">{HERO_CARD.label}</div>
+            <div className="mt-2 text-3xl font-bold tracking-tight">{HERO_CARD.value}</div>
+            <div className="mt-3 text-xs opacity-70">{HERO_CARD.caption}</div>
+            <Sparkline data={HERO_CARD.spark} className="absolute bottom-4 right-4 h-6 w-16 text-background/70" />
+          </div>
           {STAT_CARDS.map((s) => (
             <div key={s.label} className="p-5">
               <div className="text-sm text-muted-foreground">{s.label}</div>
-              <div className="mt-2 text-3xl font-bold tracking-tight tabular-nums">{s.value}</div>
+              <div className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{s.value}</div>
               <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
                 {s.up ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                 <span className="font-medium text-foreground">{s.deltaLabel}</span>
@@ -111,72 +168,54 @@ export default function DashboardHome() {
           ))}
         </div>
 
-        {/* Charts */}
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Card title="도달 추이" subtitle="최근 7일 일별 도달 (더미)">
-            <div className="mt-4 h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={REACH_TREND} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
-                  <defs>
-                    <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={FG} stopOpacity={0.8} />
-                      <stop offset="100%" stopColor={FG} stopOpacity={0.04} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="day"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: MUTED, fontSize: 11 }}
-                    dy={6}
-                  />
-                  <YAxis hide />
-                  <Tooltip cursor={{ fill: "var(--color-muted)" }} content={<ReachTooltip />} />
-                  <Bar dataKey="reach" fill="url(#reachGrad)" radius={[6, 6, 0, 0]} maxBarSize={44} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+        {/* Time-series stack — shared 30-day axis */}
+        <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
+          <ChartRow title="도달 추이" subtitle="최근 30일 일별 도달 (더미)">
+            <AreaChart data={DAILY} margin={MARGIN}>
+              <defs>
+                <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={FG} stopOpacity={0.32} />
+                  <stop offset="100%" stopColor={FG} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="date" hide />
+              <YAxis hide domain={[0, "dataMax"]} />
+              <Tooltip cursor={{ stroke: MUTED, strokeDasharray: "3 3" }} content={<ReachTooltip />} />
+              <Area type="monotone" dataKey="reach" stroke={FG} strokeWidth={2} fill="url(#reachGrad)" />
+            </AreaChart>
+          </ChartRow>
 
-          <Card title="플랫폼별 성과" subtitle="일별 매칭 성사 건수 (더미)">
-            {/* legend (identity by line darkness, never color) */}
-            <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4 rounded bg-foreground" /> Instagram
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4 rounded bg-foreground/40" /> YouTube
-              </span>
-            </div>
-            <div className="mt-2 h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={PLATFORM_PERF} margin={{ top: 8, right: 8, bottom: 0, left: 4 }}>
-                  <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: MUTED, fontSize: 11 }}
-                    dy={6}
-                  />
-                  <YAxis hide />
-                  <Tooltip content={<PerfTooltip />} />
-                  <Line type="stepAfter" dataKey="instagram" stroke={FG} strokeWidth={2} dot={false} />
-                  <Line
-                    type="stepAfter"
-                    dataKey="youtube"
-                    stroke={FG}
-                    strokeOpacity={0.4}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+          <ChartRow title="역제안 유입" subtitle="일별 도착한 역제안 건수 (더미)">
+            <BarChart data={DAILY} margin={MARGIN}>
+              <XAxis dataKey="date" hide />
+              <YAxis hide allowDecimals={false} />
+              <Tooltip cursor={{ fill: "var(--color-muted)" }} content={<ProposalTooltip />} />
+              <Bar dataKey="proposals" fill={FG} radius={[2, 2, 0, 0]} maxBarSize={9} />
+            </BarChart>
+          </ChartRow>
+
+          <ChartRow
+            title="콘텐츠 게시량"
+            subtitle="브랜드 태그 콘텐츠 · IG/YT (더미)"
+            legend={
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-foreground" /> IG</span>
+                <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-foreground/35" /> YT</span>
+              </div>
+            }
+          >
+            <BarChart data={DAILY} margin={MARGIN}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
+              <XAxis dataKey="date" {...AXIS} dy={4} interval={4} />
+              <YAxis hide allowDecimals={false} />
+              <Tooltip cursor={{ fill: "var(--color-muted)" }} content={<ContentTooltip />} />
+              <Bar dataKey="ig" stackId="c" fill={FG} maxBarSize={12} />
+              <Bar dataKey="yt" stackId="c" fill={FG} fillOpacity={0.35} radius={[2, 2, 0, 0]} maxBarSize={12} />
+            </BarChart>
+          </ChartRow>
         </div>
 
-        {/* Bottom */}
+        {/* Bottom — ranking + activity */}
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card title="인플루언서 랭킹" subtitle="이번 달 성과 기준 Top 5">
             <div className="mt-4 overflow-x-auto">
@@ -200,9 +239,7 @@ export default function DashboardHome() {
                           <span className="truncate font-medium">{r.profile_name}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 pr-2 text-right tabular-nums text-muted-foreground">
-                        {fmtCount(r.followers)}
-                      </td>
+                      <td className="py-2.5 pr-2 text-right tabular-nums text-muted-foreground">{fmtCount(r.followers)}</td>
                       <td className="py-2.5 pr-2 text-right tabular-nums">{fmtCount(r.reach)}</td>
                       <td className="py-2.5 text-right tabular-nums">{r.engagement}%</td>
                     </tr>
