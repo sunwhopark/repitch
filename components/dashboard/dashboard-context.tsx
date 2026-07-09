@@ -11,11 +11,16 @@ import {
   DEFAULT_FILTERS,
   type DashboardFilters,
 } from "@/components/dashboard/filter-modal";
+import { SEED_CAMPAIGNS, type Campaign } from "@/components/dashboard/seed-campaigns";
 
 type DashboardCtx = {
   filters: DashboardFilters;
   setFilters: (f: DashboardFilters) => void;
   openFilter: () => void;
+  // Campaigns live here (not just the list page) so a newly-created one
+  // survives navigation and the home "진행 중 캠페인" stat can reflect it.
+  campaigns: Campaign[];
+  addCampaign: (c: Campaign) => void;
 };
 
 const Ctx = createContext<DashboardCtx | null>(null);
@@ -30,6 +35,12 @@ export function useDashboard() {
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [filters, setFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [open, setOpen] = useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(SEED_CAMPAIGNS);
+
+  const addCampaign = useCallback(
+    (c: Campaign) => setCampaigns((prev) => [c, ...prev]),
+    [],
+  );
 
   // Demo: no persistence — the filter modal auto-opens on first entry each
   // session; "필터 다시 설정" reopens it, and completing/skipping closes it.
@@ -40,7 +51,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openFilter = useCallback(() => setOpen(true), []);
 
   return (
-    <Ctx.Provider value={{ filters, setFilters, openFilter }}>
+    <Ctx.Provider value={{ filters, setFilters, openFilter, campaigns, addCampaign }}>
       {children}
       <FilterModal
         open={open}

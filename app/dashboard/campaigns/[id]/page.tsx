@@ -2,10 +2,10 @@
 import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  getCampaign,
-  type CampaignCreator,
-  type CampaignPost,
+import { useDashboard } from "@/components/dashboard/dashboard-context";
+import type {
+  CampaignCreator,
+  CampaignPost,
 } from "@/components/dashboard/seed-campaigns";
 
 const fmt = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)}만` : n.toLocaleString());
@@ -112,7 +112,8 @@ function PostCard({ p }: { p: CampaignPost }) {
 export default function CampaignDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const c = getCampaign(id);
+  const { campaigns } = useDashboard();
+  const c = campaigns.find((x) => x.id === id);
 
   if (!c) {
     return (

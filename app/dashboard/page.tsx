@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { useDashboard } from "@/components/dashboard/dashboard-context";
 import {
   HERO_CARD,
   STAT_CARDS,
@@ -143,6 +144,10 @@ function Card({ title, subtitle, children }: {
 const MARGIN = { top: 4, right: 8, bottom: 0, left: 8 };
 
 export default function DashboardHome() {
+  // "진행 중 캠페인" reflects live campaigns (seed 3 + any created this session).
+  const { campaigns } = useDashboard();
+  const activeCampaigns = campaigns.filter((c) => c.status === "진행 중").length;
+
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
       <div className="mx-auto w-full max-w-5xl">
@@ -160,7 +165,9 @@ export default function DashboardHome() {
           {STAT_CARDS.map((s) => (
             <div key={s.label} className="p-4">
               <div className="text-sm text-muted-foreground">{s.label}</div>
-              <div className="mt-1.5 text-xl font-bold tracking-tight tabular-nums">{s.value}</div>
+              <div className="mt-1.5 text-xl font-bold tracking-tight tabular-nums">
+                {s.label === "진행 중 캠페인" ? activeCampaigns : s.value}
+              </div>
               <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                 {s.up ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                 <span className="font-medium text-foreground">{s.deltaLabel}</span>
