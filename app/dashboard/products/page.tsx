@@ -1,20 +1,21 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import { SEED_PRODUCTS, type Product } from "@/components/dashboard/seed-products";
 
-function Sparkline({ values, className }: { values: number[]; className?: string }) {
-  const w = 96, h = 30;
-  const max = Math.max(...values), min = Math.min(...values);
-  const span = max - min || 1;
-  const pts = values
-    .map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / span) * (h - 3) - 1.5}`)
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" preserveAspectRatio="none" aria-hidden>
-      <polyline points={pts} />
-    </svg>
-  );
+const FG = "var(--color-foreground)";
+
+// Display-only smoothing — 90 daily ranks → ~13 weekly averages. Inverted so
+// improvement (rank ↓) reads as up. Seed 원본은 그대로 둔다.
+function weeklyRank(series: Product["series"]): { i: number; v: number }[] {
+  const out: { i: number; v: number }[] = [];
+  for (let i = 0; i < series.length; i += 7) {
+    const chunk = series.slice(i, i + 7);
+    const avg = chunk.reduce((a, s) => a + s.rank, 0) / chunk.length;
+    out.push({ i: out.length, v: -avg });
+  }
+  return out;
 }
 
 function ChannelBadge({ channel }: { channel: string }) {
@@ -26,13 +27,18 @@ function ChannelBadge({ channel }: { channel: string }) {
 }
 
 function ProductCard({ p, onClick }: { p: Product; onClick: () => void }) {
-  // 순위 스파크라인 — 낮을수록 좋으니 반전해서 상승=개선으로 보이게.
-  const rankInverted = p.series.map((s) => -s.rank);
+  const weekly = weeklyRank(p.series);
+  const last = weekly.length - 1;
+  const firstRank = p.series[0].rank;
+  const bestRank = Math.min(...p.series.map((s) => s.rank));
+  const improved = bestRank < firstRank;
+  const gid = `rank-grad-${p.id}`;
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:bg-foreground/[0.03]"
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:bg-foreground/[0.03]"
     >
       <div className="flex items-start gap-4">
         <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-muted text-[11px] text-muted-foreground/60">
@@ -53,9 +59,49 @@ function ProductCard({ p, onClick }: { p: Product; onClick: () => void }) {
           </div>
         </div>
       </div>
-      <div className="flex items-end justify-between gap-3">
-        <div className="text-sm font-semibold tabular-nums">{p.price.toLocaleString()}원</div>
-        <Sparkline values={rankInverted} className="h-7 w-24 text-foreground/70" />
+
+      <div className="mt-auto">
+        <div className="flex items-baseline justify-between">
+          <div className="text-sm font-semibold tabular-nums">{p.price.toLocaleString()}원</div>
+          {improved && (
+            <div className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+              #{firstRank} <span className="opacity-40">→</span> #{bestRank}
+            </div>
+          )}
+        </div>
+
+        {/* 순위 추이 스파크라인 — 카드 하단 전폭 */}
+        <div className="mt-2 border-t border-border pt-2.5">
+          <div className="mb-1 text-[11px] font-medium text-muted-foreground">순위 추이 (90일)</div>
+          <div className="h-12">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weekly} margin={{ top: 4, right: 6, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={FG} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={FG} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+                <Area
+                  type="monotone"
+                  dataKey="v"
+                  stroke={FG}
+                  strokeWidth={1.8}
+                  fill={`url(#${gid})`}
+                  isAnimationActive={false}
+                  dot={(dp: { cx?: number; cy?: number; index?: number }) =>
+                    dp.index === last && dp.cx != null && dp.cy != null ? (
+                      <circle key="end" cx={dp.cx} cy={dp.cy} r={2.6} fill={FG} stroke="var(--color-background)" strokeWidth={1.5} />
+                    ) : (
+                      <g key={`e${dp.index}`} />
+                    )
+                  }
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </button>
   );
