@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Inbox,
   Megaphone,
+  Package,
   Wallet,
   PanelLeftClose,
   PanelLeftOpen,
@@ -73,6 +74,12 @@ function buildNavGroups(
           title: "인플루언서 DB",
           icon: Users,
           href: "/dashboard/influencers",
+        },
+        {
+          id: "products",
+          title: "제품",
+          icon: Package,
+          href: "/dashboard/products",
         },
         {
           id: "campaigns",
@@ -343,6 +350,7 @@ function activeIdFromPath(pathname: string, status: string | null): string {
   if (pathname === "/dashboard") return "home";
   if (pathname.startsWith("/dashboard/inbox")) return "inbox";
   if (pathname.startsWith("/dashboard/influencers")) return "influencers";
+  if (pathname.startsWith("/dashboard/products")) return "products";
   if (pathname.startsWith("/dashboard/campaigns")) {
     if (status === "active") return "c-active";
     if (status === "ended") return "c-ended";
@@ -356,6 +364,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   home: "/dashboard",
   inbox: "/dashboard/inbox",
   influencers: "/dashboard/influencers",
+  products: "/dashboard/products",
   settlement: "/dashboard/settlement",
   campaigns: "/dashboard/campaigns",
   "c-active": "/dashboard/campaigns?status=active",
@@ -366,6 +375,7 @@ const TITLE_BY_ID: Record<string, string> = {
   home: "대시보드",
   inbox: "역제안 인박스",
   influencers: "인플루언서 DB",
+  products: "제품",
   campaigns: "캠페인",
   "c-active": "캠페인",
   "c-ended": "캠페인",
