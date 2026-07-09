@@ -1,6 +1,12 @@
 "use client";
 import React from "react";
-import { ChevronLeft, FileUp } from "lucide-react";
+import { CalendarDays, ChevronLeft, FileUp } from "lucide-react";
+import {
+  getLocalTimeZone,
+  parseDate,
+  today,
+  type DateValue,
+} from "@internationalized/date";
 import { cn } from "@/lib/utils";
 import {
   Modal,
@@ -10,6 +16,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/ui/modal";
+import { RangeCalendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BRAND_AGE_GROUPS, BRAND_CATEGORIES } from "@/lib/brand-application-options";
@@ -84,6 +91,7 @@ const fmtMD = (iso: string) => {
   const [, m, d] = iso.split("-");
   return `${+m}/${+d}`;
 };
+const fmtDot = (iso: string) => iso.replaceAll("-", ".");
 
 export function CreateCampaignModal({
   open,
@@ -97,16 +105,25 @@ export function CreateCampaignModal({
   const [step, setStep] = React.useState(0);
   const [draft, setDraft] = React.useState<Draft>(EMPTY);
   const [pdfHint, setPdfHint] = React.useState(false);
+  const [calOpen, setCalOpen] = React.useState(false);
 
   // Reset every time it opens (demo — no persistence). Closing via ESC/overlay
-  // needs no confirmation.
+  // needs no confirmation. 캠페인 기간 기본값 = 오늘 ~ +30일.
   React.useEffect(() => {
     if (open) {
+      const t = today(getLocalTimeZone());
       setStep(0);
-      setDraft(EMPTY);
+      setDraft({ ...EMPTY, start: t.toString(), end: t.add({ days: 30 }).toString() });
       setPdfHint(false);
+      setCalOpen(false);
     }
   }, [open]);
+
+  const rangeValue =
+    draft.start && draft.end
+      ? { start: parseDate(draft.start), end: parseDate(draft.end) }
+      : null;
+  const minDate: DateValue = today(getLocalTimeZone());
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const toggle = <K extends "ages" | "platforms">(k: K, v: Draft[K][number]) =>
@@ -159,7 +176,7 @@ export function CreateCampaignModal({
           <p className="text-sm text-muted-foreground">{STEPS[step].desc}</p>
         </ModalHeader>
 
-        <ModalBody className="space-y-5 px-4 pb-2 md:px-6">
+        <ModalBody className="max-h-[62vh] space-y-5 overflow-y-auto px-4 pb-2 md:px-6">
           {step === 0 && (
             <>
               {/* Placeholder for LLM plan-parsing — 실서비스: 기획서 PDF → 필드 자동 채움. UI만. */}
@@ -263,21 +280,32 @@ export function CreateCampaignModal({
                 </div>
               </Field>
               <Field label="캠페인 기간 *">
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={draft.start}
-                    onChange={(e) => set("start", e.target.value)}
-                    className="rounded-xl focus-visible:border-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                  <span className="text-muted-foreground">~</span>
-                  <Input
-                    type="date"
-                    value={draft.end}
-                    onChange={(e) => set("end", e.target.value)}
-                    className="rounded-xl focus-visible:border-foreground/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setCalOpen((o) => !o)}
+                  className={cn(
+                    "flex h-10 items-center gap-2 rounded-xl border px-3 text-sm transition-colors",
+                    calOpen ? "border-foreground/40" : "border-border hover:border-foreground/30",
+                  )}
+                >
+                  <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+                  {draft.start && draft.end ? (
+                    <span>{fmtDot(draft.start)} ~ {fmtDot(draft.end)}</span>
+                  ) : (
+                    <span className="text-muted-foreground">기간 선택</span>
+                  )}
+                </button>
+                {calOpen && (
+                  <div className="flex justify-center rounded-xl border border-border p-3">
+                    <RangeCalendar
+                      minValue={minDate}
+                      value={rangeValue}
+                      onChange={(v) =>
+                        v && setDraft((d) => ({ ...d, start: v.start.toString(), end: v.end.toString() }))
+                      }
+                    />
+                  </div>
+                )}
               </Field>
             </>
           )}
@@ -298,7 +326,7 @@ export function CreateCampaignModal({
           )}
         </ModalBody>
 
-        <ModalFooter className="flex-row gap-2.5 px-4 pb-4 md:px-6">
+        <ModalFooter className="flex-row gap-2.5 border-t-0 bg-transparent px-4 pb-4 md:px-6">
           {step > 0 && (
             <button
               type="button"
