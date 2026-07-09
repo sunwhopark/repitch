@@ -39,6 +39,22 @@ export type CampaignFunnel = {
   proposals: number; // 역제안 도착
 };
 
+// Wizard inputs, stored on user-created campaigns so 수정 can prefill them.
+export type CampaignForm = {
+  product: string;
+  category: string;
+  intro: string;
+  ages: string[];
+  gender: string;
+  headcount: string;
+  platforms: ("instagram" | "youtube")[];
+  provision: string;
+  quantity: string;
+  trial: string;
+  start: string; // ISO YYYY-MM-DD
+  end: string;
+};
+
 export type Campaign = {
   id: string;
   product: string; // 캠페인명
@@ -48,6 +64,10 @@ export type Campaign = {
   funnel: CampaignFunnel;
   creators: CampaignCreator[];
   posts: CampaignPost[];
+  // Set only on wizard-created campaigns. Seeds omit it → not editable/deletable
+  // (home stat + inbox deep links depend on the seeds staying fixed).
+  custom?: boolean;
+  form?: CampaignForm;
 };
 
 export const SEED_CAMPAIGNS: Campaign[] = [

@@ -3,6 +3,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
+import { CampaignActions } from "@/components/dashboard/campaign-actions";
 import type {
   CampaignCreator,
   CampaignPost,
@@ -143,14 +144,19 @@ export default function CampaignDetailPage() {
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <span className={cn("size-1.5 rounded-full", c.status === "진행 중" ? "bg-foreground" : "bg-muted-foreground/40")} />
-          SEEDING CAMPAIGN REPORT
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className={cn("size-1.5 rounded-full", c.status === "진행 중" ? "bg-foreground" : "bg-muted-foreground/40")} />
+              SEEDING CAMPAIGN REPORT
+            </div>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight">{c.product}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {c.funnel.applied}명 크리에이터 신청 · {c.period} · {c.status}
+            </p>
+          </div>
+          <CampaignActions campaign={c} onDeleted={() => router.push("/dashboard/campaigns")} className="mt-1" />
         </div>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">{c.product}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {c.funnel.applied}명 크리에이터 신청 · {c.period} · {c.status}
-        </p>
 
         {/* Funnel */}
         <div className="mt-6 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">

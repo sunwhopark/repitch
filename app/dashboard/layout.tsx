@@ -1,6 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Search,
   LayoutDashboard,
@@ -78,10 +78,11 @@ function buildNavGroups(
           id: "campaigns",
           title: "캠페인",
           icon: Megaphone,
+          href: "/dashboard/campaigns",
           defaultOpen: pathname.startsWith("/dashboard/campaigns"),
           children: [
-            { id: "c-active", title: "진행 중", icon: Hash, href: "/dashboard/campaigns" },
-            { id: "c-ended", title: "종료", icon: Hash, href: "/dashboard/campaigns" },
+            { id: "c-active", title: "진행 중", icon: Hash, href: "/dashboard/campaigns?status=active" },
+            { id: "c-ended", title: "종료", icon: Hash, href: "/dashboard/campaigns?status=ended" },
           ],
         },
       ],
@@ -196,6 +197,7 @@ function NavItem({
   const handleClick = () => {
     if (hasChildren) {
       setIsOpen(!isOpen);
+      if (item.href) onSelect(item.id); // parent with a route also navigates (전체)
     } else {
       onSelect(item.id);
     }
@@ -337,11 +339,15 @@ function SidebarNav({
   );
 }
 
-function activeIdFromPath(pathname: string): string {
+function activeIdFromPath(pathname: string, status: string | null): string {
   if (pathname === "/dashboard") return "home";
   if (pathname.startsWith("/dashboard/inbox")) return "inbox";
   if (pathname.startsWith("/dashboard/influencers")) return "influencers";
-  if (pathname.startsWith("/dashboard/campaigns")) return "campaigns";
+  if (pathname.startsWith("/dashboard/campaigns")) {
+    if (status === "active") return "c-active";
+    if (status === "ended") return "c-ended";
+    return "campaigns";
+  }
   if (pathname.startsWith("/dashboard/settlement")) return "settlement";
   return "";
 }
@@ -351,8 +357,9 @@ const ROUTE_BY_ID: Record<string, string> = {
   inbox: "/dashboard/inbox",
   influencers: "/dashboard/influencers",
   settlement: "/dashboard/settlement",
-  "c-active": "/dashboard/campaigns#active",
-  "c-ended": "/dashboard/campaigns#ended",
+  campaigns: "/dashboard/campaigns",
+  "c-active": "/dashboard/campaigns?status=active",
+  "c-ended": "/dashboard/campaigns?status=ended",
 };
 
 const TITLE_BY_ID: Record<string, string> = {
@@ -360,12 +367,15 @@ const TITLE_BY_ID: Record<string, string> = {
   inbox: "역제안 인박스",
   influencers: "인플루언서 DB",
   campaigns: "캠페인",
+  "c-active": "캠페인",
+  "c-ended": "캠페인",
   settlement: "정산",
 };
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { openFilter } = useDashboard();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -381,7 +391,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     setCreateOpen(false);
   };
 
-  const activeId = activeIdFromPath(pathname);
+  const activeId = activeIdFromPath(pathname, searchParams.get("status"));
   const activeTitle = TITLE_BY_ID[activeId] ?? "대시보드";
   const groups = buildNavGroups(proposalCount, pathname);
 
@@ -566,7 +576,9 @@ export default function DashboardLayout({
 }) {
   return (
     <DashboardProvider>
-      <DashboardShell>{children}</DashboardShell>
+      <Suspense fallback={null}>
+        <DashboardShell>{children}</DashboardShell>
+      </Suspense>
     </DashboardProvider>
   );
 }

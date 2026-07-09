@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "@/components/dashboard/dashboard-context";
 import type { Campaign } from "@/components/dashboard/seed-campaigns";
+import { CampaignActions } from "@/components/dashboard/campaign-actions";
 import { CreateCampaignModal } from "@/components/ui/create-campaign-modal";
 
 function StatusBadge({ status }: { status: Campaign["status"] }) {
@@ -20,30 +22,37 @@ function StatusBadge({ status }: { status: Campaign["status"] }) {
   );
 }
 
-function CampaignCard({ c, highlight, onClick }: { c: Campaign; highlight: boolean; onClick: () => void }) {
+function CampaignCard({ c, highlight, onOpen }: { c: Campaign; highlight: boolean; onOpen: () => void }) {
   return (
-    <button
-      type="button"
+    <div
       id={`campaign-${c.id}`}
-      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); }
+      }}
       className={cn(
-        "flex scroll-mt-4 flex-col gap-3 rounded-xl border bg-card p-5 text-left transition-all",
+        "flex scroll-mt-4 cursor-pointer flex-col gap-3 rounded-xl border bg-card p-5 text-left transition-all",
         highlight ? "border-foreground ring-2 ring-foreground/20" : "border-border hover:bg-foreground/[0.03]",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="truncate font-bold">{c.product}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{c.period} · {c.offer}</p>
         </div>
-        <StatusBadge status={c.status} />
+        <div className="flex shrink-0 items-center gap-1">
+          <StatusBadge status={c.status} />
+          <CampaignActions campaign={c} />
+        </div>
       </div>
       <div className="flex gap-4 text-xs text-muted-foreground">
         <span>신청 <b className="font-semibold text-foreground tabular-nums">{c.funnel.applied}</b></span>
         <span>발송 <b className="font-semibold text-foreground tabular-nums">{c.funnel.shipped}</b></span>
         <span>역제안 <b className="font-semibold text-foreground tabular-nums">{c.funnel.proposals}</b></span>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -65,7 +74,7 @@ function Section({ id, title, items, highlightId, onOpen }: {
       {items.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((c) => (
-            <CampaignCard key={c.id} c={c} highlight={c.id === highlightId} onClick={() => onOpen(c.id)} />
+            <CampaignCard key={c.id} c={c} highlight={c.id === highlightId} onOpen={() => onOpen(c.id)} />
           ))}
         </div>
       ) : (
@@ -75,25 +84,18 @@ function Section({ id, title, items, highlightId, onOpen }: {
   );
 }
 
-export default function CampaignsPage() {
+function CampaignsInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status"); // "active" | "ended" | null
   const { campaigns, addCampaign } = useDashboard();
   const [createOpen, setCreateOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const active = campaigns.filter((c) => c.status === "진행 중");
   const ended = campaigns.filter((c) => c.status === "종료");
-
-  // Sidebar 진행 중/종료 submenu links via #active / #ended.
-  useEffect(() => {
-    const scrollToHash = () => {
-      const id = window.location.hash.replace("#", "");
-      if (id) document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-    scrollToHash();
-    window.addEventListener("hashchange", scrollToHash);
-    return () => window.removeEventListener("hashchange", scrollToHash);
-  }, []);
+  const showActive = status !== "ended";
+  const showEnded = status !== "active";
 
   // After creating: scroll to the new card and flash a highlight ring.
   useEffect(() => {
@@ -121,21 +123,45 @@ export default function CampaignsPage() {
           </button>
         </div>
 
+        {status && (
+          <div className="mt-4 flex items-center gap-2">
+            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+              {status === "active" ? "진행 중" : "종료"} {(status === "active" ? active : ended).length}건
+            </span>
+            <Link href="/dashboard/campaigns" className="text-xs text-muted-foreground underline hover:text-foreground">
+              전체 보기
+            </Link>
+          </div>
+        )}
+
         <div className="mt-8 space-y-10">
-          <Section id="active" title="진행 중" items={active} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} />
-          <Section id="ended" title="종료" items={ended} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} />
+          {showActive && (
+            <Section id="active" title="진행 중" items={active} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} />
+          )}
+          {showEnded && (
+            <Section id="ended" title="종료" items={ended} highlightId={highlightId} onOpen={(id) => router.push(`/dashboard/campaigns/${id}`)} />
+          )}
         </div>
       </div>
 
       <CreateCampaignModal
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreate={(c) => {
+        onSubmit={(c) => {
           addCampaign(c);
           setCreateOpen(false);
+          if (status) router.push("/dashboard/campaigns"); // ensure the new card is visible
           setHighlightId(c.id);
         }}
       />
     </div>
+  );
+}
+
+export default function CampaignsPage() {
+  return (
+    <Suspense fallback={null}>
+      <CampaignsInner />
+    </Suspense>
   );
 }

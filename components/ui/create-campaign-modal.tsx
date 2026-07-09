@@ -20,26 +20,13 @@ import { RangeCalendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BRAND_AGE_GROUPS, BRAND_CATEGORIES } from "@/lib/brand-application-options";
-import type { Campaign } from "@/components/dashboard/seed-campaigns";
+import type { Campaign, CampaignForm } from "@/components/dashboard/seed-campaigns";
 
 // 생성 위저드 — 기능명세서 5.3의 4단계 구조. 데모: 서버 저장 없이 완료 시
 // 리스트에 메모리 추가(워크스페이스 생성 모달과 같은 패턴).
 
 type Platform = "instagram" | "youtube";
-type Draft = {
-  product: string;
-  category: string;
-  intro: string;
-  ages: string[];
-  gender: string;
-  headcount: string;
-  platforms: Platform[];
-  provision: string;
-  quantity: string;
-  trial: string;
-  start: string;
-  end: string;
-};
+type Draft = CampaignForm;
 
 const EMPTY: Draft = {
   product: "", category: "", intro: "",
@@ -96,28 +83,34 @@ const fmtDot = (iso: string) => iso.replaceAll("-", ".");
 export function CreateCampaignModal({
   open,
   onOpenChange,
-  onCreate,
+  onSubmit,
+  initial,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (c: Campaign) => void;
+  onSubmit: (c: Campaign) => void;
+  initial?: Campaign; // present → 수정 모드
 }) {
+  const isEdit = !!initial;
   const [step, setStep] = React.useState(0);
   const [draft, setDraft] = React.useState<Draft>(EMPTY);
   const [pdfHint, setPdfHint] = React.useState(false);
   const [calOpen, setCalOpen] = React.useState(false);
 
   // Reset every time it opens (demo — no persistence). Closing via ESC/overlay
-  // needs no confirmation. 캠페인 기간 기본값 = 오늘 ~ +30일.
+  // needs no confirmation. 수정 모드면 기존 값으로 프리필, 아니면 기간 기본값 =
+  // 오늘 ~ +30일.
   React.useEffect(() => {
     if (open) {
       const t = today(getLocalTimeZone());
+      const base: Draft =
+        initial?.form ?? { ...EMPTY, start: t.toString(), end: t.add({ days: 30 }).toString() };
       setStep(0);
-      setDraft({ ...EMPTY, start: t.toString(), end: t.add({ days: 30 }).toString() });
+      setDraft(base);
       setPdfHint(false);
       setCalOpen(false);
     }
-  }, [open]);
+  }, [open, initial]);
 
   const rangeValue =
     draft.start && draft.end
@@ -141,17 +134,25 @@ export function CreateCampaignModal({
   const canProceed = valid[step];
 
   const submit = () => {
-    const campaign: Campaign = {
+    // Edit → preserve id/status/funnel/creators/posts; create → fresh defaults.
+    const base: Campaign = initial ?? {
       id: `custom-${Date.now()}`,
-      product: draft.product.trim(),
-      offer: `${draft.product.trim()} · ${draft.quantity}개`,
-      period: `${fmtMD(draft.start)} – ${fmtMD(draft.end)}`,
+      product: "",
+      offer: "",
+      period: "",
       status: "진행 중",
       funnel: { applied: 0, selected: 0, shipped: 0, trialing: 0, proposals: 0 },
       creators: [],
       posts: [],
+      custom: true,
     };
-    onCreate(campaign);
+    onSubmit({
+      ...base,
+      product: draft.product.trim(),
+      offer: `${draft.product.trim()} · ${draft.quantity}개`,
+      period: `${fmtMD(draft.start)} – ${fmtMD(draft.end)}`,
+      form: draft,
+    });
   };
 
   const platformLabel = draft.platforms.map((p) => (p === "instagram" ? "IG" : "YT")).join("·");
@@ -170,7 +171,7 @@ export function CreateCampaignModal({
             ))}
           </div>
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            STEP {step + 1}/4
+            {isEdit ? `캠페인 수정 · ${step + 1}/4` : `STEP ${step + 1}/4`}
           </div>
           <ModalTitle className="text-xl font-semibold">{STEPS[step].title}</ModalTitle>
           <p className="text-sm text-muted-foreground">{STEPS[step].desc}</p>
@@ -342,7 +343,7 @@ export function CreateCampaignModal({
             onClick={() => (step === 3 ? submit() : setStep((s) => s + 1))}
             className="h-11 flex-1 rounded-full bg-foreground text-sm font-semibold text-background transition-colors hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:hover:bg-muted"
           >
-            {step === 3 ? "캠페인 열기" : "다음"}
+            {step === 3 ? (isEdit ? "저장" : "캠페인 열기") : "다음"}
           </button>
         </ModalFooter>
       </ModalContent>
