@@ -93,11 +93,13 @@ export function CreateCampaignModal({
   onOpenChange,
   onSubmit,
   initial,
+  prefill,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (c: Campaign) => void;
   initial?: Campaign;
+  prefill?: Partial<CampaignForm>; // 생성 모드 프리필(예: DB 매칭 조건 → 캠페인 만들기)
 }) {
   const isEdit = !!initial;
   const [step, setStep] = React.useState(0);
@@ -108,13 +110,13 @@ export function CreateCampaignModal({
 
   React.useEffect(() => {
     if (open) {
-      setDraft(initial?.form ? { ...defaultDraft(), ...initial.form } : defaultDraft());
+      setDraft(initial?.form ? { ...defaultDraft(), ...initial.form } : { ...defaultDraft(), ...(prefill ?? {}) });
       setStep(0);
       setPdfHint(false);
       setCalOpen(false);
       setRefInput("");
     }
-  }, [open, initial]);
+  }, [open, initial, prefill]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const toggle = (k: "ages" | "languages" | "platforms" | "contentTypes" | "sizeRanges" | "styles", v: string) =>
