@@ -12,7 +12,7 @@ import {
   type DashboardFilters,
 } from "@/components/dashboard/filter-modal";
 import { SEED_CAMPAIGNS, type Campaign } from "@/components/dashboard/seed-campaigns";
-import type { Decision } from "@/components/dashboard/proposal-detail";
+import type { DecisionRecord } from "@/components/dashboard/proposal-detail";
 
 type DashboardCtx = {
   filters: DashboardFilters;
@@ -27,8 +27,8 @@ type DashboardCtx = {
   mutateCampaign: (id: string, fn: (c: Campaign) => Campaign) => void;
   removeCampaign: (id: string) => void;
   // 역제안 응답 상태 — 인박스와 캠페인 상세 패널이 공유(양쪽 동기화).
-  decisions: Record<string, Decision>;
-  setDecision: (id: string, d: Decision) => void;
+  decisions: Record<string, DecisionRecord>;
+  setDecision: (id: string, d: DecisionRecord) => void;
   // 인플루언서 DB 관심 표시(메모리) — 페이지 이동에도 유지.
   favorites: string[];
   toggleFavorite: (id: string) => void;
@@ -66,9 +66,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const [decisions, setDecisions] = useState<Record<string, DecisionRecord>>({});
   const setDecision = useCallback(
-    (id: string, d: Decision) => setDecisions((prev) => ({ ...prev, [id]: d })),
+    (id: string, d: DecisionRecord) => setDecisions((prev) => ({ ...prev, [id]: d })),
     [],
   );
 

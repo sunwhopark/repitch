@@ -251,8 +251,8 @@ export default function InfluencersPage() {
             <ProposalDetail
               key={proposalItem.proposal.id}
               item={proposalItem}
-              decision={decisions[proposalItem.proposal.id] ?? null}
-              onDecision={(d) => setDecision(proposalItem.proposal.id, d)}
+              record={decisions[proposalItem.proposal.id] ?? null}
+              onDecision={(r) => setDecision(proposalItem.proposal.id, r)}
               onBack={() => setShowProposal(false)}
               onClose={() => setShowProposal(false)}
             />

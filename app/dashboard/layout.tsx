@@ -1,5 +1,5 @@
 "use client";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Search,
@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase/client";
+import { scoreAll, passesFilters } from "@/lib/scoring";
 import {
   DashboardProvider,
   useDashboard,
@@ -386,11 +386,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { openFilter } = useDashboard();
+  const { openFilter, filters, decisions } = useDashboard();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [proposalCount, setProposalCount] = useState<number | null>(null);
   const [workspaces, setWorkspaces] = useState<string[]>([DEMO_WORKSPACE]);
   const [selectedWorkspace, setSelectedWorkspace] = useState(DEMO_WORKSPACE);
   const [createOpen, setCreateOpen] = useState(false);
@@ -403,19 +402,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const activeId = activeIdFromPath(pathname, searchParams.get("status"));
   const activeTitle = TITLE_BY_ID[activeId] ?? "대시보드";
-  const groups = buildNavGroups(proposalCount, pathname);
-
-  // Inbox badge = proposal_submissions count (reuse the counts RPC). Hidden on failure.
-  useEffect(() => {
-    let active = true;
-    supabase.rpc("get_application_counts").then(({ data, error }) => {
-      if (!active || error || !data) return;
-      setProposalCount(Number(data.proposal) || 0);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Inbox badge = 받은 제안(무응답) 수 — 필터를 통과하고 아직 응답 안 한 제안.
+  // 응답하면 줄어든다(데모 컨텍스트 기준).
+  const inboxCount = useMemo(
+    () => scoreAll().filter((s) => passesFilters(s.proposal, filters) && !decisions[s.proposal.id]).length,
+    [filters, decisions],
+  );
+  const groups = buildNavGroups(inboxCount, pathname);
 
   // Start collapsed (drawer closed) on mobile.
   useEffect(() => {
