@@ -43,6 +43,23 @@ const STAGES = [
   { key: "proposals", label: "역제안 도착" },
 ] as const;
 const DOT_OPACITY = [0.25, 0.4, 0.55, 0.75, 1];
+// 퍼널 카드 → 로스터 상태 필터 (체험 신청은 신청자 검토 탭으로).
+const STATUS_BY_KEY: Partial<Record<(typeof STAGES)[number]["key"], CampaignCreator["status"]>> = {
+  selected: "선정됨",
+  shipped: "발송됨",
+  trialing: "체험 중",
+  proposals: "역제안 도착",
+};
+
+// 보류 사유 — 매칭 모델의 음성 라벨(§7). short는 뱃지 표기용.
+const HOLD_REASONS: { key: string; short: string }[] = [
+  { key: "팔로워 규모", short: "팔로워" },
+  { key: "카테고리 부적합", short: "카테고리" },
+  { key: "콘텐츠 톤·스타일", short: "톤·스타일" },
+  { key: "예산·단가", short: "예산" },
+  { key: "기타", short: "기타" },
+];
+const holdShort = (r?: string) => HOLD_REASONS.find((x) => x.key === r)?.short ?? r ?? "";
 
 function CreatorStatusBadge({ status }: { status: CampaignCreator["status"] }) {
   const emphasis = status === "역제안 도착";
@@ -167,10 +184,61 @@ function ApplicantRow({ a, selected, onOpen, onSelect, onHold, onUnhold }: {
           <button type="button" onClick={stop(onSelect)} className="rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background hover:bg-foreground/90">선정</button>
         </div>
       ) : a.status === "보류" ? (
-        <button type="button" onClick={stop(onUnhold)} className="shrink-0 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground">보류 해제</button>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">보류 · {holdShort(a.holdReason)}</span>
+          <button type="button" onClick={stop(onUnhold)} className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground">다시 검토</button>
+        </div>
       ) : (
         <span className="shrink-0 rounded-full bg-foreground px-2 py-0.5 text-[11px] font-medium text-background">선정</span>
       )}
+    </div>
+  );
+}
+
+// 보류 사유 선택 스텝 (역제안 거절 사유 칩과 같은 패턴).
+function HoldReasonPicker({ onConfirm, onCancel }: {
+  onConfirm: (reason: string, memo?: string) => void;
+  onCancel: () => void;
+}) {
+  const [reason, setReason] = useState<string | null>(null);
+  const [memo, setMemo] = useState("");
+  return (
+    <div>
+      <div className="mb-2 text-xs font-medium">보류 사유</div>
+      <div className="flex flex-wrap gap-1.5">
+        {HOLD_REASONS.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setReason(r.key)}
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-xs transition-colors",
+              reason === r.key ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {r.key}
+          </button>
+        ))}
+      </div>
+      {reason === "기타" && (
+        <input
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="사유 한 줄 메모"
+          className="mt-2 h-9 w-full rounded-xl border border-border bg-transparent px-3 text-sm outline-none focus:border-foreground/40"
+        />
+      )}
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          disabled={!reason}
+          onClick={() => onConfirm(reason!, reason === "기타" ? memo.trim() || undefined : undefined)}
+          className="h-10 flex-1 rounded-full bg-foreground text-sm font-bold text-background disabled:bg-muted disabled:text-muted-foreground"
+        >
+          보류 확정
+        </button>
+        <button type="button" onClick={onCancel} className="h-10 rounded-full border border-border px-5 text-sm text-muted-foreground hover:text-foreground">취소</button>
+      </div>
     </div>
   );
 }
@@ -341,14 +409,16 @@ export default function CampaignDetailPage() {
 
   const scored = useMemo(() => scoreAll(), []);
   const [view, setView] = useState<"roster" | "applicants">("roster");
+  const [rosterFilter, setRosterFilter] = useState<CampaignCreator["status"] | null>(null);
   // 우측 패널: 크리에이터(발송/제안) 또는 신청자(프로필 요약).
   const [panel, setPanel] = useState<{ kind: "creator"; handle: string } | { kind: "applicant"; id: string } | null>(null);
+  const [holdMode, setHoldMode] = useState(false); // 신청자 패널에서 보류 사유 선택 중
   const [mobileDetail, setMobileDetail] = useState(false);
 
   // ESC closes the panel (desktop).
   useEffect(() => {
     if (!panel) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPanel(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setPanel(null); setHoldMode(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [panel]);
@@ -364,6 +434,7 @@ export default function CampaignDetailPage() {
 
   const applicants = [...(c.applicants ?? [])].sort((a, b) => b.matchScore - a.matchScore);
   const pending = applicants.filter((a) => a.status === "검토 대기").length;
+  const rosterCreators = rosterFilter ? c.creators.filter((cr) => cr.status === rosterFilter) : c.creators;
   const selectedCreator = panel?.kind === "creator" ? c.creators.find((cr) => cr.handle === panel.handle) ?? null : null;
   const selectedApplicant = panel?.kind === "applicant" ? applicants.find((a) => a.id === panel.id) ?? null : null;
   const applicantInf = selectedApplicant ? SEED_INFLUENCERS.find((i) => i.id === selectedApplicant.id) ?? null : null;
@@ -384,7 +455,17 @@ export default function CampaignDetailPage() {
   };
   const openApplicant = (a: Applicant) => {
     setPanel({ kind: "applicant", id: a.id });
+    setHoldMode(false);
     setMobileDetail(true);
+  };
+
+  // 퍼널 카드 클릭 — 체험 신청은 신청자 탭, 나머지는 로스터 상태 필터(재클릭 해제).
+  const clickFunnel = (key: (typeof STAGES)[number]["key"]) => {
+    if (key === "applied") { setView("applicants"); setRosterFilter(null); return; }
+    const status = STATUS_BY_KEY[key];
+    if (!status) return;
+    setView("roster");
+    setRosterFilter((f) => (f === status ? null : status));
   };
 
   const selectApplicant = (a: Applicant) =>
@@ -395,16 +476,17 @@ export default function CampaignDetailPage() {
       funnel: { ...cur.funnel, selected: cur.funnel.selected + 1 },
     }));
 
-  const holdApplicant = (a: Applicant) =>
+  const holdApplicant = (a: Applicant, reason: string, memo?: string) =>
     mutateCampaign(c.id, (cur) => ({
       ...cur,
-      applicants: (cur.applicants ?? []).map((x) => (x.id === a.id ? { ...x, status: "보류" as const } : x)),
+      applicants: (cur.applicants ?? []).map((x) => (x.id === a.id ? { ...x, status: "보류" as const, holdReason: reason, holdMemo: memo } : x)),
     }));
 
-  const unholdApplicant = (a: Applicant) =>
+  // 다시 검토 — 보류 → 검토 대기(사유 초기화).
+  const reviewAgain = (a: Applicant) =>
     mutateCampaign(c.id, (cur) => ({
       ...cur,
-      applicants: (cur.applicants ?? []).map((x) => (x.id === a.id ? { ...x, status: "검토 대기" as const } : x)),
+      applicants: (cur.applicants ?? []).map((x) => (x.id === a.id ? { ...x, status: "검토 대기" as const, holdReason: undefined, holdMemo: undefined } : x)),
     }));
 
   // 선정 취소 — 크리에이터를 로스터에서 빼고 신청자(검토 대기)로 되돌린다.
@@ -472,27 +554,30 @@ export default function CampaignDetailPage() {
             </div>
           </div>
 
-          {/* Funnel — 체험 신청 셀은 신청자 검토로 이동 */}
+          {/* Funnel — 5 카드 모두 클릭 필터(체험 신청=신청자 탭, 나머지=로스터 상태) */}
           <div className="mt-6 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">
             {STAGES.map((s, i) => {
               const value = c.funnel[s.key];
               const prev = i === 0 ? null : c.funnel[STAGES[i - 1].key];
               const pct = prev ? Math.round((value / prev) * 100) : null;
-              const clickable = s.key === "applied" && applicants.length > 0;
-              const inner = (
-                <>
+              const status = STATUS_BY_KEY[s.key];
+              const active = s.key === "applied" ? view === "applicants" : view === "roster" && rosterFilter === status;
+              return (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => clickFunnel(s.key)}
+                  className={cn("p-4 text-left transition-colors", active ? "bg-foreground/[0.06] ring-1 ring-inset ring-foreground/25" : "hover:bg-foreground/[0.03]")}
+                >
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span className="size-2 rounded-full bg-foreground" style={{ opacity: DOT_OPACITY[i] }} />
                     {s.label}
                   </div>
                   <div className="mt-2 text-2xl font-bold tabular-nums">{value}</div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{pct === null ? (clickable ? "신청자 검토 →" : "체험단 지원") : `전 단계의 ${pct}%`}</div>
-                </>
-              );
-              return clickable ? (
-                <button key={s.key} type="button" onClick={() => setView("applicants")} className="p-4 text-left transition-colors hover:bg-foreground/[0.03]">{inner}</button>
-              ) : (
-                <div key={s.key} className="p-4">{inner}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {s.key === "applied" ? "신청자 검토 →" : active ? "필터 해제" : pct === null ? "체험단 지원" : `전 단계의 ${pct}%`}
+                  </div>
+                </button>
               );
             })}
           </div>
@@ -520,17 +605,25 @@ export default function CampaignDetailPage() {
               <Tab active={view === "roster"} onClick={() => setView("roster")}>크리에이터 {c.creators.length}</Tab>
               <Tab active={view === "applicants"} onClick={() => setView("applicants")}>신청자 검토 {pending}</Tab>
             </div>
+            {view === "roster" && rosterFilter && (
+              <div className="mb-3 flex items-center gap-2">
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{rosterFilter} {rosterCreators.length}명</span>
+                <button type="button" onClick={() => setRosterFilter(null)} className="text-xs text-muted-foreground underline hover:text-foreground">전체 보기</button>
+              </div>
+            )}
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               {view === "roster"
-                ? c.creators.map((cr, i) => (
-                    <CreatorRow
-                      key={cr.handle + i}
-                      c={cr}
-                      selected={panel?.kind === "creator" && panel.handle === cr.handle}
-                      onOpen={() => openCreator(cr)}
-                      onCancel={() => unselectCreator(cr.handle)}
-                    />
-                  ))
+                ? rosterCreators.length > 0
+                  ? rosterCreators.map((cr, i) => (
+                      <CreatorRow
+                        key={cr.handle + i}
+                        c={cr}
+                        selected={panel?.kind === "creator" && panel.handle === cr.handle}
+                        onOpen={() => openCreator(cr)}
+                        onCancel={() => unselectCreator(cr.handle)}
+                      />
+                    ))
+                  : <p className="px-4 py-8 text-center text-sm text-muted-foreground">해당 상태의 크리에이터가 없어요.</p>
                 : applicants.length > 0
                   ? applicants.map((a) => (
                       <ApplicantRow
@@ -539,8 +632,8 @@ export default function CampaignDetailPage() {
                         selected={panel?.kind === "applicant" && panel.id === a.id}
                         onOpen={() => openApplicant(a)}
                         onSelect={() => selectApplicant(a)}
-                        onHold={() => holdApplicant(a)}
-                        onUnhold={() => unholdApplicant(a)}
+                        onHold={() => { openApplicant(a); setHoldMode(true); }}
+                        onUnhold={() => reviewAgain(a)}
                       />
                     ))
                   : <p className="px-4 py-8 text-center text-sm text-muted-foreground">신청자가 없어요.</p>}
@@ -585,30 +678,52 @@ export default function CampaignDetailPage() {
               onClose={() => setPanel(null)}
               footer={
                 selectedApplicant.status === "검토 대기" ? (
-                  <div className="flex gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => { holdApplicant(selectedApplicant); setPanel(null); }}
-                      className="h-11 flex-1 rounded-full border border-border text-sm font-bold text-muted-foreground hover:text-foreground"
-                    >
-                      보류
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { selectApplicant(selectedApplicant); setPanel(null); }}
-                      className="h-11 flex-[1.4] rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
-                    >
-                      선정
-                    </button>
-                  </div>
+                  holdMode ? (
+                    <HoldReasonPicker
+                      onConfirm={(reason, memo) => { holdApplicant(selectedApplicant, reason, memo); setHoldMode(false); setPanel(null); }}
+                      onCancel={() => setHoldMode(false)}
+                    />
+                  ) : (
+                    <div className="flex gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setHoldMode(true)}
+                        className="h-11 flex-1 rounded-full border border-border text-sm font-bold text-muted-foreground hover:text-foreground"
+                      >
+                        보류
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { selectApplicant(selectedApplicant); setPanel(null); }}
+                        className="h-11 flex-[1.4] rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
+                      >
+                        선정
+                      </button>
+                    </div>
+                  )
                 ) : selectedApplicant.status === "보류" ? (
-                  <button
-                    type="button"
-                    onClick={() => { unholdApplicant(selectedApplicant); setPanel(null); }}
-                    className="h-11 w-full rounded-full border border-border text-sm font-bold text-muted-foreground hover:text-foreground"
-                  >
-                    보류 해제
-                  </button>
+                  <div>
+                    <div className="mb-2.5 rounded-lg bg-muted/50 px-3 py-2 text-[13px]">
+                      <span className="font-semibold">보류 사유 · {holdShort(selectedApplicant.holdReason)}</span>
+                      {selectedApplicant.holdMemo && <span className="text-muted-foreground"> — {selectedApplicant.holdMemo}</span>}
+                    </div>
+                    <div className="flex gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => { reviewAgain(selectedApplicant); setPanel(null); }}
+                        className="h-11 flex-1 rounded-full border border-border text-sm font-bold text-muted-foreground hover:text-foreground"
+                      >
+                        다시 검토
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { selectApplicant(selectedApplicant); setPanel(null); }}
+                        className="h-11 flex-[1.4] rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
+                      >
+                        선정
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-center text-sm text-muted-foreground">이미 선정된 신청자예요.</p>
                 )

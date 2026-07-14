@@ -45,6 +45,10 @@ export type Applicant = {
   engagement: number;
   matchScore: number;
   status: "검토 대기" | "선정" | "보류";
+  // 보류 사유(+메모). 실서비스에선 보류 사유가 매칭 모델의 음성 라벨로 축적된다
+  // (평가지표 설계서 §7 사상).
+  holdReason?: string;
+  holdMemo?: string;
 };
 
 export type CampaignPost = {
