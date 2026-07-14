@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, Star } from "lucide-react";
+import { ChevronLeft, ExternalLink, Star } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -14,7 +14,40 @@ import {
   YAxis,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { getProduct, type Product, type ProductEvent, type ProductPoint } from "@/components/dashboard/seed-products";
+import {
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+} from "@/components/ui/modal";
+import { getProduct, type ContentItem, type Product, type ProductEvent, type ProductPoint } from "@/components/dashboard/seed-products";
+
+const fmtN = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)}만` : n.toLocaleString());
+
+function PlatformIcon({ platform, className }: { platform: string; className?: string }) {
+  if (platform === "tiktok") {
+    return (
+      <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+        <path d="M13 3h2.2c.25 1.7 1.25 3 3 3.25v2.25c-1.1 0-2.1-.32-3-.9v5.65a4.75 4.75 0 1 1-4.75-4.75c.27 0 .53.02.8.07v2.35a2.4 2.4 0 1 0 1.75 2.31V3z" />
+      </svg>
+    );
+  }
+  return platform === "instagram" ? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden>
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden>
+      <rect x="2.5" y="5" width="19" height="14" rx="4" />
+      <path d="M10.5 9.2 15 12l-4.5 2.8V9.2Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+const PLATFORM_LABEL: Record<string, string> = { instagram: "인스타그램", youtube: "유튜브", tiktok: "틱톡" };
 
 const FG = "var(--color-foreground)";
 const MUTED = "var(--color-muted-foreground)";
@@ -124,24 +157,107 @@ function StatCard({ label, value, caption }: { label: string; value: string; cap
   );
 }
 
-function RelatedCard({ handle, date, views, likes, comments }: {
-  handle: string; date: string; views: number; likes: number; comments: number;
-}) {
+// ── 관련 콘텐츠 우측 레일 ───────────────────────────────────────────────
+function RailCard({ item, onClick }: { item: ContentItem; onClick: () => void }) {
   return (
-    <div className="w-60 shrink-0 overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex aspect-square items-center justify-center bg-muted text-xs text-muted-foreground/60">이미지</div>
-      <div className="p-3">
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="truncate font-medium">{handle}</span>
-          <span className="shrink-0 text-muted-foreground">{date}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      className="overflow-hidden rounded-lg border border-border bg-card text-left transition-colors hover:bg-foreground/[0.03]"
+    >
+      <div className="relative flex aspect-square items-center justify-center bg-muted text-[10px] text-muted-foreground/50">
+        이미지
+        <span className="absolute left-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-background/90 text-foreground/80">
+          <PlatformIcon platform={item.platform} className="size-3" />
+        </span>
+      </div>
+      <div className="p-2">
+        <div className="truncate text-[11px] font-medium">{item.handle}</div>
+        <div className="mt-0.5 text-xs font-bold tabular-nums">
+          {fmtN(item.views)}<span className="ml-1 text-[10px] font-normal text-muted-foreground">views</span>
         </div>
-        <div className="mt-2 text-lg font-bold tabular-nums">{views.toLocaleString()}<span className="ml-1 text-xs font-normal text-muted-foreground">views</span></div>
-        <div className="mt-1 flex gap-3 border-t border-border pt-2 text-xs text-muted-foreground">
-          <span><b className="font-semibold text-foreground tabular-nums">{likes}</b> likes</span>
-          <span><b className="font-semibold text-foreground tabular-nums">{comments}</b> comments</span>
+      </div>
+    </button>
+  );
+}
+
+function ContentRail({ content, onOpen }: { content: ContentItem[]; onOpen: (c: ContentItem) => void }) {
+  const platforms = (["instagram", "youtube", "tiktok"] as const).filter((pl) => content.some((c) => c.platform === pl));
+  // 기본 선택 = 건수 많은 탭
+  const counts = Object.fromEntries(platforms.map((pl) => [pl, content.filter((c) => c.platform === pl).length]));
+  const [tab, setTab] = useState<string>(platforms.slice().sort((a, b) => counts[b] - counts[a])[0] ?? "instagram");
+  const items = content.filter((c) => c.platform === tab);
+
+  return (
+    <div className="flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-xl border border-border bg-card lg:max-h-[calc(100svh-9rem)]">
+      <div className="border-b border-border p-3">
+        <div className="mb-2 text-sm font-bold">관련 콘텐츠</div>
+        <div className="flex flex-wrap gap-1">
+          {platforms.map((pl) => (
+            <button
+              key={pl}
+              type="button"
+              onClick={() => setTab(pl)}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                tab === pl ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <PlatformIcon platform={pl} className="size-3" />
+              {PLATFORM_LABEL[pl]} {counts[pl]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="grid grid-cols-2 gap-2">
+          {items.map((c) => (
+            <RailCard key={c.id} item={c} onClick={() => onOpen(c)} />
+          ))}
         </div>
       </div>
     </div>
+  );
+}
+
+function ContentModal({ item, onOpenChange }: { item: ContentItem | null; onOpenChange: (o: boolean) => void }) {
+  return (
+    <Modal open={!!item} onOpenChange={onOpenChange}>
+      <ModalContent className="md:max-w-md md:rounded-2xl md:border-0 md:shadow-xl">
+        <ModalHeader className="sr-only">
+          <ModalTitle>{item?.handle ?? "콘텐츠"}</ModalTitle>
+        </ModalHeader>
+        {item && (
+          <ModalBody className="p-4 md:p-5">
+            <div className="flex aspect-square items-center justify-center rounded-xl bg-muted text-xs text-muted-foreground/50">이미지</div>
+            <div className="mt-4 flex items-center gap-2">
+              <PlatformIcon platform={item.platform} className="size-4 shrink-0 text-foreground/70" />
+              <span className="truncate text-base font-bold">{item.handle}</span>
+              <span className="ml-auto shrink-0 text-xs text-muted-foreground">{item.date}</span>
+            </div>
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {PLATFORM_LABEL[item.platform]} · 팔로워 {fmtN(item.followers)} · 반응률 {item.engagement}%
+            </div>
+            <div className="mt-4 grid grid-cols-3 divide-x divide-border overflow-hidden rounded-xl border border-border">
+              {([["조회", item.views], ["좋아요", item.likes], ["댓글", item.comments]] as const).map(([l, v]) => (
+                <div key={l} className="p-3 text-center">
+                  <div className="text-lg font-extrabold tabular-nums">{fmtN(v)}</div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">{l}</div>
+                </div>
+              ))}
+            </div>
+            <a
+              href={item.content_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-foreground text-sm font-bold text-background hover:bg-foreground/90"
+            >
+              게시물 보기 <ExternalLink className="size-4" />
+            </a>
+          </ModalBody>
+        )}
+      </ModalContent>
+    </Modal>
   );
 }
 
@@ -149,6 +265,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const p: Product | undefined = getProduct(id);
+  const [openItem, setOpenItem] = useState<ContentItem | null>(null);
 
   if (!p) {
     return (
@@ -164,20 +281,11 @@ export default function ProductDetailPage() {
   const reviewGain = p.series.reduce((a, s) => a + s.reviews, 0);
   const contentTotal = p.series.reduce((a, s) => a + s.ig + s.yt, 0);
   const contentRate = Math.round(contentTotal / 3); // 3개월
-
-  const related = p.events
-    .filter((e) => e.n >= 2)
-    .map((e, i) => ({
-      handle: e.label.split(" ")[0],
-      date: e.date,
-      views: 1200 + i * 480 + p.rank * 12,
-      likes: 74 + i * 22,
-      comments: 9 + i * 4,
-    }));
+  const content = p.content ?? [];
 
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
-      <div className="mx-auto w-full max-w-4xl">
+      <div className="mx-auto w-full max-w-6xl">
         <button
           type="button"
           onClick={() => router.push("/dashboard/products")}
@@ -234,8 +342,9 @@ export default function ProductDetailPage() {
           <StatCard label="역제안 수" value={`${p.proposals}건`} caption="이 제품 관련" />
         </div>
 
-        {/* Time-series stack — shared 90-day axis */}
-        <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
+        {/* Charts + 관련 콘텐츠 우측 레일 (lg 미만: 레일이 아래로) */}
+        <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
           <RankChartWithMarkers series={p.series} events={p.events} category={p.category} />
 
           <ChartRow title="신규 리뷰" subtitle="일별 신규 리뷰 수 (더미)" height={80}>
@@ -268,18 +377,15 @@ export default function ProductDetailPage() {
           </ChartRow>
         </div>
 
-        {/* Related content */}
-        {related.length > 0 && (
-          <section className="mt-6">
-            <h2 className="mb-3 text-sm font-bold">관련 콘텐츠</h2>
-            <div className="flex gap-4 overflow-x-auto pb-1">
-              {related.map((r, i) => (
-                <RelatedCard key={i} {...r} />
-              ))}
-            </div>
-          </section>
+        {content.length > 0 && (
+          <aside className="w-full lg:sticky lg:top-0 lg:w-[300px] lg:shrink-0">
+            <ContentRail content={content} onOpen={setOpenItem} />
+          </aside>
         )}
+        </div>
       </div>
+
+      <ContentModal item={openItem} onOpenChange={(o) => { if (!o) setOpenItem(null); }} />
     </div>
   );
 }
