@@ -541,13 +541,19 @@ export default function CampaignDetailPage() {
 
           {/* Header */}
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <span className={cn("size-1.5 rounded-full", c.status === "진행 중" ? "bg-foreground" : "bg-muted-foreground/40")} />
-                SEEDING CAMPAIGN REPORT
+            <div className="flex min-w-0 items-start gap-4">
+              {c.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.imageUrl} alt="" className="size-16 shrink-0 rounded-xl border border-border object-cover" />
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className={cn("size-1.5 rounded-full", c.status === "진행 중" ? "bg-foreground" : "bg-muted-foreground/40")} />
+                  SEEDING CAMPAIGN REPORT
+                </div>
+                <h1 className="mt-2 text-2xl font-bold tracking-tight">{c.product}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">{c.funnel.applied}명 크리에이터 신청 · {c.period} · {c.status}</p>
               </div>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight">{c.product}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">{c.funnel.applied}명 크리에이터 신청 · {c.period} · {c.status}</p>
             </div>
             <div className="mt-1">
               <CampaignMenu campaign={c} onEdit={() => startEdit(c)} onDelete={() => startDelete(c)} />

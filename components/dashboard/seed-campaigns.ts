@@ -68,20 +68,44 @@ export type CampaignFunnel = {
   proposals: number; // 역제안 도착
 };
 
-// Wizard inputs, stored on user-created campaigns so 수정 can prefill them.
+// Wizard inputs (기획 접수 폼 기준), stored on user-created campaigns so 수정이
+// 프리필한다. 브랜드명·담당자·연락처는 가입 데이터라 캠페인 등록에서 제외(기획
+// 코멘트). 시드 캠페인은 이 폼이 없어도 되도록 전부 optional-friendly하게 읽는다.
 export type CampaignForm = {
+  // 1 제품 정보
   product: string;
   category: string;
   intro: string;
+  imageUrl?: string; // 업로드 미리보기 objectURL(메모리) — 실서비스: 스토리지 업로드
+  productUrl: string;
+  // 2 목표·예산
+  goal: string;
+  budget: string;
+  budgetSplit: string;
+  // 3 모집 조건
   ages: string[];
   gender: string;
+  languages: string[];
+  platforms: string[]; // IG/YT/틱톡/상관없음
+  contentTypes: string[];
   headcount: string;
-  platforms: ("instagram" | "youtube")[];
-  provision: string;
+  // 4 원하는 인플루언서
+  sizeRanges: string[];
+  styles: string[];
+  refAccounts: string[]; // @핸들 1~3
+  wantFeel: string;
+  avoidType: string;
+  // 5 제공·일정
+  provision: string; // 제품 무상 제공 / 특가 제공
+  dealMode: "amount" | "percent"; // 특가 방식
+  dealValue: string;
   quantity: string;
-  trial: string;
-  start: string; // ISO YYYY-MM-DD
+  trial: string; // 1주/2주/3주/4주/기타
+  trialCustom: string; // 기타 시 주 단위 숫자
+  start: string; // ISO YYYY-MM-DD (모집 기간)
   end: string;
+  postStart: string; // 희망 게시 시작일
+  postTBD: boolean; // 미정 / 상담 후 결정
 };
 
 export type Campaign = {
@@ -90,6 +114,7 @@ export type Campaign = {
   offer: string; // 제공 내역(제품·수량)
   period: string;
   status: "진행 중" | "종료";
+  imageUrl?: string; // 업로드 이미지(커스텀 캠페인) — 카드·상세에 노출
   funnel: CampaignFunnel;
   creators: CampaignCreator[];
   applicants?: Applicant[]; // 진행 중 캠페인에 부여(아래 post-process)

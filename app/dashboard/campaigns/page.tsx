@@ -43,8 +43,12 @@ function CampaignCard({ c, highlight, onOpen, onEdit, onDelete }: {
         highlight ? "border-foreground ring-2 ring-foreground/20" : "border-border hover:bg-foreground/[0.03]",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start gap-2">
+        {c.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={c.imageUrl} alt="" className="size-12 shrink-0 rounded-lg border border-border object-cover" />
+        )}
+        <div className="min-w-0 flex-1">
           <h3 className="truncate font-bold">{c.product}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{c.period} · {c.offer}</p>
         </div>
