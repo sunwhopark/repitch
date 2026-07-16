@@ -35,7 +35,8 @@ const PLATFORMS = ["Instagram", "YouTube", "틱톡", "상관없음"];
 const CONTENT_TYPES = ["숏폼 (릴스·쇼츠·틱톡)", "피드 게시물", "롱폼 리뷰 영상", "스토리", "추천받고 싶어요"];
 const SIZE_RANGES = ["1천 이하", "1천~1만", "1만~10만", "10만 이상", "상관없음"];
 const STYLES = ["감성·분위기", "유머·친근", "전문·정보", "트렌디·감도", "비주얼 강점", "상관없음"];
-const PROVISIONS = ["제품 무상 제공", "특가 제공"];
+// 표시 텍스트: "할인 판매"(구 "특가 제공"). draft.provision 값이 곧 표시 라벨이라 비교문도 이 문자열을 사용.
+const PROVISIONS = ["제품 무상 제공", "할인 판매"];
 const TRIAL_OPTIONS = ["1주", "2주", "3주", "4주", "기타"];
 
 const STEPS = [
@@ -151,7 +152,7 @@ export function CreateCampaignModal({
   const canProceed = valid[step];
 
   const trialLabel = draft.trial === "기타" ? (draft.trialCustom ? `${draft.trialCustom}주` : "기타") : draft.trial;
-  const dealLabel = draft.dealMode === "amount" ? `${draft.dealValue || 0}원 특가` : `${draft.dealValue || 0}% 할인`;
+  const dealLabel = draft.dealMode === "amount" ? `${draft.dealValue || 0}원 판매` : `${draft.dealValue || 0}% 할인`;
 
   const submit = () => {
     const base: Campaign = initial ?? {
@@ -160,7 +161,7 @@ export function CreateCampaignModal({
       funnel: { applied: 0, selected: 0, shipped: 0, trialing: 0, proposals: 0 },
       creators: [], posts: [], custom: true,
     };
-    const offer = draft.provision === "특가 제공"
+    const offer = draft.provision === "할인 판매"
       ? `${dealLabel} · ${draft.quantity || 1}개`
       : `${draft.product.trim()} · ${draft.quantity || 1}개`;
     onSubmit({
@@ -341,14 +342,15 @@ export function CreateCampaignModal({
                   {PROVISIONS.map((p) => <Chip key={p} label={p} active={draft.provision === p} onClick={() => set("provision", p)} />)}
                 </div>
               </Field>
-              {draft.provision === "특가 제공" && (
-                <Field label="특가 방식" hint='예: "100원 특가" 또는 "90% 할인"'>
+              {draft.provision === "할인 판매" && (
+                <Field label="판매 방식" hint='예: "100원 판매" 또는 "90% 할인"'>
                   <div className="flex items-center gap-2">
                     <div className="flex shrink-0 rounded-full border border-border p-0.5">
-                      <button type="button" onClick={() => set("dealMode", "amount")} className={cn("rounded-full px-3 py-1 text-xs font-medium", draft.dealMode === "amount" ? "bg-foreground text-background" : "text-muted-foreground")}>금액</button>
+                      {/* dealMode 값(amount/percent)은 유지, 라벨만 판매가/할인율 */}
+                      <button type="button" onClick={() => set("dealMode", "amount")} className={cn("rounded-full px-3 py-1 text-xs font-medium", draft.dealMode === "amount" ? "bg-foreground text-background" : "text-muted-foreground")}>판매가</button>
                       <button type="button" onClick={() => set("dealMode", "percent")} className={cn("rounded-full px-3 py-1 text-xs font-medium", draft.dealMode === "percent" ? "bg-foreground text-background" : "text-muted-foreground")}>할인율</button>
                     </div>
-                    <Input type="number" min={0} inputMode="numeric" placeholder={draft.dealMode === "amount" ? "특가 금액" : "할인율"} value={draft.dealValue} onChange={(e) => set("dealValue", e.target.value.replace(/[^0-9]/g, ""))} className={inputCls} />
+                    <Input type="number" min={0} inputMode="numeric" placeholder={draft.dealMode === "amount" ? "예: 100" : "예: 90"} value={draft.dealValue} onChange={(e) => set("dealValue", e.target.value.replace(/[^0-9]/g, ""))} className={inputCls} />
                     <span className="shrink-0 text-sm text-muted-foreground">{draft.dealMode === "amount" ? "원" : "%"}</span>
                   </div>
                 </Field>
@@ -414,7 +416,7 @@ export function CreateCampaignModal({
               {draft.sizeRanges.length > 0 && <SummaryRow label="규모" value={draft.sizeRanges.join(", ")} />}
               {draft.styles.length > 0 && <SummaryRow label="스타일" value={draft.styles.join(", ")} />}
               {draft.refAccounts.length > 0 && <SummaryRow label="참고 계정" value={draft.refAccounts.join(" ")} />}
-              <SummaryRow label="제공" value={`${draft.provision === "특가 제공" ? dealLabel : draft.provision} · ${draft.quantity || 1}개`} />
+              <SummaryRow label="제공" value={`${draft.provision === "할인 판매" ? dealLabel : draft.provision} · ${draft.quantity || 1}개`} />
               <SummaryRow label="체험 기간" value={trialLabel} />
               <SummaryRow label="캠페인 기간" value={`${fmtMD(draft.start)} – ${fmtMD(draft.end)}`} />
               <SummaryRow label="게시 시작" value={draft.postTBD ? "미정 / 상담 후 결정" : draft.postStart || "—"} last />

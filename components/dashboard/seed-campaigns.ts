@@ -96,8 +96,8 @@ export type CampaignForm = {
   wantFeel: string;
   avoidType: string;
   // 5 제공·일정
-  provision: string; // 제품 무상 제공 / 특가 제공
-  dealMode: "amount" | "percent"; // 특가 방식
+  provision: string; // 제품 무상 제공 / 할인 판매
+  dealMode: "amount" | "percent"; // 판매 방식 (amount=판매가 / percent=할인율)
   dealValue: string;
   quantity: string;
   trial: string; // 1주/2주/3주/4주/기타
