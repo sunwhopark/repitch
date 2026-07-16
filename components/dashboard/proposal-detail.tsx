@@ -251,7 +251,7 @@ export function ProposalDetail({
                   {d}%
                 </button>
               ))}
-              <button type="button" onClick={() => setPhase("nego-reject-confirm")} className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">할 의향 없어요</button>
+              <button type="button" onClick={() => setPhase("nego-reject-confirm")} className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">조정 의향이 없어요</button>
             </div>
             <div className="mt-3 flex gap-2">
               <button type="button" disabled={!discount} onClick={() => { confirmNego(); setPhase("idle"); }} className="h-10 flex-1 rounded-full bg-foreground text-sm font-bold text-background disabled:bg-muted disabled:text-muted-foreground">협의 확정</button>
