@@ -20,12 +20,12 @@ export type DecisionRecord = {
 };
 
 export const REJECT_REASONS = ["카테고리 부적합", "단가 과다", "오디언스 불일치", "진정성 부족", "일정 불가"];
-const NEGO_REASONS = ["카테고리가 안 맞아요", "브랜드 스타일과 안 맞아요", "단가가 너무 높아요", "기타"];
+const NEGO_REASONS = ["카테고리가 맞지 않아요", "브랜드 스타일과 맞지 않아요", "단가 조정이 필요해요", "기타"];
 const DISCOUNTS = [10, 20, 30, 40];
 const NEGO_SHORT: Record<string, string> = {
-  "카테고리가 안 맞아요": "카테고리",
-  "브랜드 스타일과 안 맞아요": "스타일",
-  "단가가 너무 높아요": "단가",
+  "카테고리가 맞지 않아요": "카테고리",
+  "브랜드 스타일과 맞지 않아요": "스타일",
+  "단가 조정이 필요해요": "단가",
   기타: "기타",
 };
 export const negoShort = (r?: string) => (r ? NEGO_SHORT[r] ?? r : "");
@@ -219,7 +219,7 @@ export function ProposalDetail({
           </div>
         ) : phase === "nego1" ? (
           <div>
-            <div className="mb-2 text-xs font-medium">어떤 점이 걸리세요?</div>
+            <div className="mb-2 text-xs font-medium">어떤 부분을 조정하고 싶으신가요?</div>
             <div className="flex flex-wrap gap-1.5">
               {NEGO_REASONS.map((r) => (
                 <button key={r} type="button" onClick={() => setNegoReason(r)} className={cn("rounded-full border px-2.5 py-1 text-xs transition-colors", negoReason === r ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>
@@ -228,16 +228,16 @@ export function ProposalDetail({
               ))}
             </div>
             {negoReason === "기타" && (
-              <input value={negoMemo} onChange={(e) => setNegoMemo(e.target.value)} placeholder="어떤 점이 걸리는지 한 줄로" className="mt-2 h-9 w-full rounded-xl border border-border bg-transparent px-3 text-sm outline-none focus:border-foreground/40" />
+              <input value={negoMemo} onChange={(e) => setNegoMemo(e.target.value)} placeholder="조정하고 싶은 내용을 한 줄로 작성해 주세요." className="mt-2 h-9 w-full rounded-xl border border-border bg-transparent px-3 text-sm outline-none focus:border-foreground/40" />
             )}
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 disabled={!negoReason}
-                onClick={() => (negoReason === "단가가 너무 높아요" ? setPhase("nego2") : (confirmNego(), setPhase("idle")))}
+                onClick={() => (negoReason === "단가 조정이 필요해요" ? setPhase("nego2") : (confirmNego(), setPhase("idle")))}
                 className="h-10 flex-1 rounded-full bg-foreground text-sm font-bold text-background disabled:bg-muted disabled:text-muted-foreground"
               >
-                {negoReason === "단가가 너무 높아요" ? "다음" : "협의 확정"}
+                {negoReason === "단가 조정이 필요해요" ? "다음" : "협의 확정"}
               </button>
               <button type="button" onClick={() => setPhase("idle")} className="h-10 rounded-full border border-border px-5 text-sm text-muted-foreground hover:text-foreground">취소</button>
             </div>
