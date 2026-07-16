@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import {
   Area,
@@ -145,8 +147,25 @@ const MARGIN = { top: 4, right: 8, bottom: 0, left: 8 };
 
 export default function DashboardHome() {
   // "진행 중 캠페인" reflects live campaigns (seed 3 + any created this session).
+  const router = useRouter();
   const { campaigns } = useDashboard();
   const activeCampaigns = campaigns.filter((c) => c.status === "진행 중").length;
+  const [highlightPerf, setHighlightPerf] = useState(false);
+
+  const scrollToPerf = () => {
+    document.getElementById("campaign-perf")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightPerf(true);
+    window.setTimeout(() => setHighlightPerf(false), 1600);
+  };
+  const onStatClick = (label: string) => {
+    if (label === "진행 중 캠페인") router.push("/dashboard/campaigns?status=active");
+    else scrollToPerf(); // 이번 달 도달 · 평균 참여율 · 광고비 집행
+  };
+
+  // 진행 중 우선 정렬.
+  const perfCampaigns = [...campaigns].sort((a, b) =>
+    a.status !== b.status ? (a.status === "진행 중" ? -1 : 1) : (b.perf?.reach ?? 0) - (a.perf?.reach ?? 0),
+  );
 
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
@@ -154,16 +173,25 @@ export default function DashboardHome() {
         <h1 className="text-xl font-semibold tracking-tight md:text-2xl">대시보드</h1>
         <p className="mt-1 text-sm text-muted-foreground">최근 30일 캠페인 성과 요약이에요.</p>
 
-        {/* Stat row — dark hero card + 4 metrics, bordered grid */}
+        {/* Stat row — dark hero card + 4 metrics, bordered grid (all clickable) */}
         <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border md:grid-cols-5 md:divide-y-0">
-          <div className="relative col-span-2 bg-foreground p-4 text-background md:col-span-1">
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/inbox")}
+            className="relative col-span-2 bg-foreground p-4 text-left text-background transition-colors hover:bg-foreground/90 md:col-span-1"
+          >
             <div className="text-sm opacity-70">{HERO_CARD.label}</div>
             <div className="mt-1.5 text-2xl font-bold tracking-tight">{HERO_CARD.value}</div>
             <div className="mt-2 text-xs opacity-70">{HERO_CARD.caption}</div>
             <Sparkline data={HERO_CARD.spark} className="absolute bottom-3 right-3 h-5 w-14 text-background/70" />
-          </div>
+          </button>
           {STAT_CARDS.map((s) => (
-            <div key={s.label} className="p-4">
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => onStatClick(s.label)}
+              className="p-4 text-left transition-colors hover:bg-foreground/[0.03]"
+            >
               <div className="text-sm text-muted-foreground">{s.label}</div>
               <div className="mt-1.5 text-xl font-bold tracking-tight tabular-nums">
                 {s.label === "진행 중 캠페인" ? activeCampaigns : s.value}
@@ -173,7 +201,7 @@ export default function DashboardHome() {
                 <span className="font-medium text-foreground">{s.deltaLabel}</span>
                 <span>{s.caption}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -224,6 +252,54 @@ export default function DashboardHome() {
             </BarChart>
           </ChartRow>
         </div>
+
+        {/* 캠페인별 성과 — 스탯 카드(도달·참여율·광고비)에서 스크롤 진입 */}
+        <section
+          id="campaign-perf"
+          className={cn(
+            "mt-4 scroll-mt-4 overflow-hidden rounded-xl border bg-card transition-all",
+            highlightPerf ? "border-foreground ring-2 ring-foreground/25" : "border-border",
+          )}
+        >
+          <div className="px-5 pt-5">
+            <h2 className="text-sm font-bold">캠페인별 성과</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">최근 30일 · 진행 중 우선</p>
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <th className="py-2 pl-5 pr-3 font-medium">캠페인</th>
+                  <th className="py-2 pr-3 font-medium">상태</th>
+                  <th className="py-2 pr-3 text-right font-medium">역제안</th>
+                  <th className="py-2 pr-3 text-right font-medium">도달</th>
+                  <th className="py-2 pr-3 text-right font-medium">참여율</th>
+                  <th className="py-2 pr-5 text-right font-medium">집행 비용</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perfCampaigns.map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={() => router.push(`/dashboard/campaigns/${c.id}`)}
+                    className="cursor-pointer border-b border-border last:border-0 transition-colors hover:bg-foreground/[0.03]"
+                  >
+                    <td className="py-2 pl-5 pr-3 font-medium">{c.product}</td>
+                    <td className="py-2 pr-3">
+                      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", c.status === "진행 중" ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{c.funnel.proposals}건</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{c.perf ? fmtCount(c.perf.reach) : "—"}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{c.perf ? `${c.perf.engagement}%` : "—"}</td>
+                    <td className="py-2 pr-5 text-right tabular-nums">{c.perf ? `${(c.perf.spend / 10000).toLocaleString()}만원` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         {/* Bottom — ranking + activity */}
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

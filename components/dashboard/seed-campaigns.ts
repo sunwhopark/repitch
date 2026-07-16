@@ -115,6 +115,9 @@ export type Campaign = {
   period: string;
   status: "진행 중" | "종료";
   imageUrl?: string; // 업로드 이미지(커스텀 캠페인) — 카드·상세에 노출
+  // 캠페인별 성과(홈 "캠페인별 성과" 섹션). 시드 4개 합이 홈 상단 카드
+  // (도달 128.4만 · 광고비 1,240만원)와 정합. custom은 아직 0.
+  perf?: { reach: number; engagement: number; spend: number };
   funnel: CampaignFunnel;
   creators: CampaignCreator[];
   applicants?: Applicant[]; // 진행 중 캠페인에 부여(아래 post-process)
@@ -285,6 +288,15 @@ const APPLICANT_IDS: Record<string, string[]> = {
   lipbalm: ["eunchae.skin", "jiwoo.daily", "daily_bom", "style_jenny", "foodie_noel", "tech_maru", "gym_rio", "travel_doy", "appreview_su", "haneul.glow"],
   cleanser: ["haneul.glow", "sora.liplog", "daily_bom", "vlog_seora", "gym_rio", "foodie_noel", "style_jenny", "tech_maru", "appreview_su"],
 };
+
+// 캠페인별 성과(더미) — 도달 합 128.4만 · 광고비 합 1,240만원 · 참여율 평균 4.2%.
+const PERF: Record<string, { reach: number; engagement: number; spend: number }> = {
+  toner: { reach: 480000, engagement: 4.6, spend: 4200000 },
+  lipbalm: { reach: 210000, engagement: 3.9, spend: 2400000 },
+  cleanser: { reach: 384000, engagement: 4.3, spend: 3600000 },
+  cream: { reach: 210000, engagement: 4.0, spend: 2200000 },
+};
+for (const c of SEED_CAMPAIGNS) c.perf = PERF[c.id];
 
 // Attach dummy shipping/tracking/trial to seed creators + build applicants.
 for (const c of SEED_CAMPAIGNS) {

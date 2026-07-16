@@ -219,7 +219,7 @@ function ContentRail({ content, sortBy, summary, onOpen }: {
       {summary}
       <div className="border-b border-border p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-sm font-bold">관련 콘텐츠</span>
+          <span className="text-sm font-bold">구간 콘텐츠</span>
           <span className="text-[11px] text-muted-foreground">{sortBy === "views" ? "조회수순" : "최신순"}</span>
         </div>
         <div className="flex flex-wrap gap-1">
