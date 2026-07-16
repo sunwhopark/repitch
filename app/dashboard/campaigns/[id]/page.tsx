@@ -581,7 +581,7 @@ export default function CampaignDetailPage() {
                   </div>
                   <div className="mt-2 text-2xl font-bold tabular-nums">{value}</div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
-                    {s.key === "applied" ? "신청자 검토 →" : active ? "필터 해제" : pct === null ? "체험단 지원" : `전 단계의 ${pct}%`}
+                    {s.key === "applied" ? "지원자 검토 →" : active ? "필터 해제" : pct === null ? "체험단 지원" : `전 단계의 ${pct}%`}
                   </div>
                 </button>
               );
@@ -608,8 +608,9 @@ export default function CampaignDetailPage() {
           {/* Creators / Applicants */}
           <section className="mt-8">
             <div className="mb-3 flex items-center gap-1 rounded-full border border-border p-0.5">
-              <Tab active={view === "roster"} onClick={() => setView("roster")}>크리에이터 {c.creators.length}</Tab>
-              <Tab active={view === "applicants"} onClick={() => setView("applicants")}>신청자 검토 {pending}</Tab>
+              {/* 표시 텍스트만: roster 탭="선정", applicants 탭="지원자" (내부 식별자 roster/applicants는 유지) */}
+              <Tab active={view === "roster"} onClick={() => setView("roster")}>선정 {c.creators.length}</Tab>
+              <Tab active={view === "applicants"} onClick={() => setView("applicants")}>지원자 {pending}</Tab>
             </div>
             {view === "roster" && rosterFilter && (
               <div className="mb-3 flex items-center gap-2">
@@ -642,7 +643,7 @@ export default function CampaignDetailPage() {
                         onUnhold={() => reviewAgain(a)}
                       />
                     ))
-                  : <p className="px-4 py-8 text-center text-sm text-muted-foreground">신청자가 없어요.</p>}
+                  : <p className="px-4 py-8 text-center text-sm text-muted-foreground">지원자가 없어요.</p>}
             </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
               {view === "roster"
@@ -731,7 +732,7 @@ export default function CampaignDetailPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-center text-sm text-muted-foreground">이미 선정된 신청자예요.</p>
+                  <p className="text-center text-sm text-muted-foreground">이미 선정된 지원자예요.</p>
                 )
               }
             />
