@@ -1,18 +1,22 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, ExternalLink, Star } from "lucide-react";
+import { ChevronLeft, ExternalLink, Star, X } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+
+type Band = { lo: number; hi: number };
+type ChartMouse = { activeTooltipIndex?: unknown; activeLabel?: unknown };
 import { cn } from "@/lib/utils";
 import {
   Modal,
@@ -98,8 +102,18 @@ function ChartRow({ title, subtitle, height, children }: {
   );
 }
 
-// 판매 순위 차트 + 이벤트 마커 오버레이 (인플루언서 활동 ↔ 커머스 성과 연결).
-function RankChartWithMarkers({ series, events, category }: { series: ProductPoint[]; events: ProductEvent[]; category: string }) {
+function RangeArea({ series, band }: { series: ProductPoint[]; band: Band | null }) {
+  if (!band) return null;
+  return <ReferenceArea x1={series[band.lo].date} x2={series[band.hi].date} fill={FG} fillOpacity={0.07} stroke="none" ifOverflow="visible" />;
+}
+
+// 판매 순위 차트 + 이벤트 마커 오버레이 + 드래그 구간 선택.
+function RankChartWithMarkers({ series, events, category, band, onDown, onMove, onUp, showHint }: {
+  series: ProductPoint[]; events: ProductEvent[]; category: string;
+  band: Band | null;
+  onDown: (s: ChartMouse) => void; onMove: (s: ChartMouse) => void; onUp: () => void;
+  showHint: boolean;
+}) {
   const [active, setActive] = useState<number | null>(null);
   const n = series.length - 1;
   return (
@@ -107,16 +121,22 @@ function RankChartWithMarkers({ series, events, category }: { series: ProductPoi
       <h3 className="text-sm font-semibold leading-tight">판매 순위</h3>
       <p className="text-xs text-muted-foreground">최근 90일 · {category} 카테고리 순위 (낮을수록 상위 · 더미)</p>
       <div className="relative mt-2">
-        <div className="h-[150px]">
+        <div className="h-[150px] cursor-crosshair select-none">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={series} margin={{ top: 20, right: 8, bottom: 0, left: 8 }}>
+            <LineChart data={series} margin={{ top: 20, right: 8, bottom: 0, left: 8 }} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
               <XAxis dataKey="date" hide />
               <YAxis hide reversed domain={["dataMin", "dataMax"]} />
+              <RangeArea series={series} band={band} />
               <Tooltip cursor={{ stroke: MUTED, strokeDasharray: "3 3" }} content={<RankTip />} />
               <Line type="monotone" dataKey="rank" stroke={FG} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
+        {showHint && (
+          <div className="pointer-events-none absolute right-2 top-1.5 hidden rounded-full bg-foreground/80 px-2.5 py-1 text-[11px] text-background md:block">
+            드래그해서 구간을 살펴보세요
+          </div>
+        )}
         {/* markers */}
         <div className="pointer-events-none absolute inset-0">
           {events.map((e) => {
@@ -181,28 +201,30 @@ function RailCard({ item, onClick }: { item: ContentItem; onClick: () => void })
   );
 }
 
-function ContentRail({ content, onOpen }: { content: ContentItem[]; onOpen: (c: ContentItem) => void }) {
+const dnum = (d: string) => { const [m, dd] = d.split("/").map(Number); return m * 100 + dd; };
+
+function ContentRail({ content, sortBy, summary, onOpen }: {
+  content: ContentItem[]; sortBy: "views" | "date"; summary?: React.ReactNode; onOpen: (c: ContentItem) => void;
+}) {
   const platforms = (["instagram", "youtube", "tiktok"] as const).filter((pl) => content.some((c) => c.platform === pl));
-  // 기본 선택 = 건수 많은 탭
   const counts = Object.fromEntries(platforms.map((pl) => [pl, content.filter((c) => c.platform === pl).length]));
-  const [tab, setTab] = useState<string>(platforms.slice().sort((a, b) => counts[b] - counts[a])[0] ?? "instagram");
-  const items = content.filter((c) => c.platform === tab);
+  const [tab, setTab] = useState<string | null>(null);
+  const activeTab = tab && platforms.includes(tab as (typeof platforms)[number]) ? tab : (platforms.slice().sort((a, b) => counts[b] - counts[a])[0] ?? null);
+  const items = content
+    .filter((c) => c.platform === activeTab)
+    .sort((a, b) => (sortBy === "views" ? b.views - a.views : dnum(b.date) - dnum(a.date)));
 
   return (
     <div className="flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-xl border border-border bg-card lg:max-h-[calc(100svh-9rem)]">
+      {summary}
       <div className="border-b border-border p-3">
-        <div className="mb-2 text-sm font-bold">관련 콘텐츠</div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-sm font-bold">관련 콘텐츠</span>
+          <span className="text-[11px] text-muted-foreground">{sortBy === "views" ? "조회수순" : "최신순"}</span>
+        </div>
         <div className="flex flex-wrap gap-1">
           {platforms.map((pl) => (
-            <button
-              key={pl}
-              type="button"
-              onClick={() => setTab(pl)}
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                tab === pl ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
+            <button key={pl} type="button" onClick={() => setTab(pl)} className={cn("flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors", activeTab === pl ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
               <PlatformIcon platform={pl} className="size-3" />
               {PLATFORM_LABEL[pl]} {counts[pl]}
             </button>
@@ -210,11 +232,13 @@ function ContentRail({ content, onOpen }: { content: ContentItem[]; onOpen: (c: 
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="grid grid-cols-2 gap-2">
-          {items.map((c) => (
-            <RailCard key={c.id} item={c} onClick={() => onOpen(c)} />
-          ))}
-        </div>
+        {items.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2">
+            {items.map((c) => <RailCard key={c.id} item={c} onClick={() => onOpen(c)} />)}
+          </div>
+        ) : (
+          <p className="px-2 py-8 text-center text-xs text-muted-foreground">이 구간엔 게시물이 없어요.</p>
+        )}
       </div>
     </div>
   );
@@ -267,6 +291,38 @@ export default function ProductDetailPage() {
   const p: Product | undefined = getProduct(id);
   const [openItem, setOpenItem] = useState<ContentItem | null>(null);
 
+  // 드래그 구간 선택 (커스텀 오버레이). band = 확정 구간, drag = 실시간.
+  const [band, setBand] = useState<Band | null>(null);
+  const [drag, setDrag] = useState<{ start: number; end: number } | null>(null);
+  const [hintSeen, setHintSeen] = useState(false);
+  const dragging = useRef(false);
+  const dateIdx = useMemo(() => new Map((p?.series ?? []).map((s, i) => [s.date, i] as const)), [p]);
+
+  const idxFrom = (s: ChartMouse | null | undefined) => {
+    const i = s?.activeTooltipIndex;
+    if (typeof i === "number") return i;
+    const l = s?.activeLabel;
+    if (l != null) return dateIdx.get(String(l)) ?? null;
+    return null;
+  };
+  const onDown = (s: ChartMouse) => { const i = idxFrom(s); if (i == null) return; dragging.current = true; setDrag({ start: i, end: i }); };
+  const onMove = (s: ChartMouse) => { if (!dragging.current) return; const i = idxFrom(s); if (i == null) return; setDrag((d) => (d ? { ...d, end: i } : { start: i, end: i })); };
+  const onUp = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setHintSeen(true);
+    setDrag((d) => {
+      if (d) { const lo = Math.min(d.start, d.end), hi = Math.max(d.start, d.end); setBand(lo === hi ? null : { lo, hi }); }
+      return null;
+    });
+  };
+  useEffect(() => {
+    const up = () => onUp();
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!p) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
@@ -282,6 +338,57 @@ export default function ProductDetailPage() {
   const contentTotal = p.series.reduce((a, s) => a + s.ig + s.yt, 0);
   const contentRate = Math.round(contentTotal / 3); // 3개월
   const content = p.content ?? [];
+
+  // 확정 or 드래그 중인 밴드 → 전 차트 공유 하이라이트.
+  const activeBand: Band | null = drag ? { lo: Math.min(drag.start, drag.end), hi: Math.max(drag.start, drag.end) } : band;
+
+  // 구간 요약 + 구간 콘텐츠.
+  const inBand = (d: string) => { const i = dateIdx.get(d); return band != null && i != null && i >= band.lo && i <= band.hi; };
+  const rangeContent = band ? content.filter((c) => inBand(c.date)) : content;
+  const rangeInfo = band
+    ? {
+        from: p.series[band.lo].date, to: p.series[band.hi].date,
+        rankFrom: p.series[band.lo].rank, rankTo: p.series[band.hi].rank,
+        reviews: p.series.slice(band.lo, band.hi + 1).reduce((a, s) => a + s.reviews, 0),
+        count: rangeContent.length,
+        markers: p.events.filter((e) => e.day >= band.lo && e.day <= band.hi),
+        rep: [...rangeContent].sort((a, b) => b.views - a.views)[0] ?? null,
+      }
+    : null;
+
+  const summaryNode = rangeInfo ? (
+    <div className="border-b border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold">구간 요약</span>
+        <button type="button" onClick={() => setBand(null)} aria-label="선택 해제" className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
+          <X className="size-3.5" />
+        </button>
+      </div>
+      <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">{rangeInfo.from} ~ {rangeInfo.to}</div>
+      <div className="mt-2 space-y-1 text-[13px]">
+        <div className="flex justify-between"><span className="text-muted-foreground">순위 변화</span><span className="font-semibold tabular-nums">#{rangeInfo.rankFrom} → #{rangeInfo.rankTo}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">신규 리뷰</span><span className="font-semibold tabular-nums">+{rangeInfo.reviews}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">구간 콘텐츠</span><span className="font-semibold tabular-nums">{rangeInfo.count}건</span></div>
+      </div>
+      {rangeInfo.markers.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {rangeInfo.markers.map((e) => (
+            <span key={e.n} className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]">
+              <span className="grid size-3.5 place-items-center rounded-full bg-foreground text-[9px] font-bold text-background">{e.n}</span>
+              {e.label.split(" ")[0]} 포함
+            </span>
+          ))}
+        </div>
+      )}
+      {rangeInfo.rep && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-muted/50 px-2.5 py-1.5 text-[12px]">
+          <PlatformIcon platform={rangeInfo.rep.platform} className="size-3 shrink-0 text-foreground/70" />
+          <span className="truncate font-medium">{rangeInfo.rep.handle}</span>
+          <span className="ml-auto shrink-0 text-muted-foreground">대표 · {fmtN(rangeInfo.rep.views)} views</span>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
@@ -345,12 +452,13 @@ export default function ProductDetailPage() {
         {/* Charts + 관련 콘텐츠 우측 레일 (lg 미만: 레일이 아래로) */}
         <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
-          <RankChartWithMarkers series={p.series} events={p.events} category={p.category} />
+          <RankChartWithMarkers series={p.series} events={p.events} category={p.category} band={activeBand} onDown={onDown} onMove={onMove} onUp={onUp} showHint={!hintSeen && !activeBand} />
 
           <ChartRow title="신규 리뷰" subtitle="일별 신규 리뷰 수 (더미)" height={80}>
             <BarChart data={p.series} margin={MARGIN}>
               <XAxis dataKey="date" hide />
               <YAxis hide />
+              <RangeArea series={p.series} band={activeBand} />
               <Tooltip cursor={{ fill: "var(--color-muted)" }} content={<ReviewTip />} />
               <Bar dataKey="reviews" fill={FG} radius={[2, 2, 0, 0]} maxBarSize={5} />
             </BarChart>
@@ -360,6 +468,7 @@ export default function ProductDetailPage() {
             <LineChart data={p.series} margin={MARGIN}>
               <XAxis dataKey="date" hide />
               <YAxis hide domain={["dataMin - 2000", "dataMax + 2000"]} />
+              <RangeArea series={p.series} band={activeBand} />
               <Tooltip cursor={{ stroke: MUTED, strokeDasharray: "3 3" }} content={<PriceTip />} />
               <Line type="stepAfter" dataKey="price" stroke={FG} strokeWidth={2} dot={false} />
             </LineChart>
@@ -370,6 +479,7 @@ export default function ProductDetailPage() {
               <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
               <XAxis dataKey="date" {...AXIS} dy={4} interval={14} />
               <YAxis hide />
+              <RangeArea series={p.series} band={activeBand} />
               <Tooltip cursor={{ fill: "var(--color-muted)" }} content={<ContentTip />} />
               <Bar dataKey="ig" stackId="c" fill={FG} maxBarSize={6} />
               <Bar dataKey="yt" stackId="c" fill={FG} fillOpacity={0.35} radius={[2, 2, 0, 0]} maxBarSize={6} />
@@ -379,7 +489,7 @@ export default function ProductDetailPage() {
 
         {content.length > 0 && (
           <aside className="w-full lg:sticky lg:top-0 lg:w-[300px] lg:shrink-0">
-            <ContentRail content={content} onOpen={setOpenItem} />
+            <ContentRail content={rangeContent} sortBy={band ? "views" : "date"} summary={summaryNode} onOpen={setOpenItem} />
           </aside>
         )}
         </div>
