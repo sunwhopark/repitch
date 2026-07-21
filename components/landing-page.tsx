@@ -13,10 +13,10 @@ export function LandingPage() {
   const [startOpen, setStartOpen] = React.useState(false);
   const router = useRouter();
 
-  // Header "시작하기": Brand → workspace, Influencer → reverse-proposal onboarding.
+  // Header "로그인": Brand → 실서비스 로그인, Influencer → reverse-proposal onboarding.
   const handleStart = () => {
     if (audience === 'brand') {
-      router.push('/dashboard');
+      router.push('/login');
     } else {
       setStartOpen(true);
     }

@@ -327,7 +327,7 @@ export default function ProductDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-sm text-muted-foreground">제품을 찾을 수 없어요.</p>
-        <button type="button" onClick={() => router.push("/dashboard/products")} className="text-sm underline">제품 목록으로</button>
+        <button type="button" onClick={() => router.push("/demo/products")} className="text-sm underline">제품 목록으로</button>
       </div>
     );
   }
@@ -395,7 +395,7 @@ export default function ProductDetailPage() {
       <div className="mx-auto w-full max-w-6xl">
         <button
           type="button"
-          onClick={() => router.push("/dashboard/products")}
+          onClick={() => router.push("/demo/products")}
           className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="size-4" /> 제품

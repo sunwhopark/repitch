@@ -404,7 +404,7 @@ export default function CampaignDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { campaigns, mutateCampaign, decisions, setDecision } = useDashboard();
-  const { startEdit, startDelete, modals } = useCampaignEditDelete(() => router.push("/dashboard/campaigns"));
+  const { startEdit, startDelete, modals } = useCampaignEditDelete(() => router.push("/demo/campaigns"));
   const c = campaigns.find((x) => x.id === id);
 
   const scored = useMemo(() => scoreAll(), []);
@@ -427,7 +427,7 @@ export default function CampaignDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-sm text-muted-foreground">캠페인을 찾을 수 없어요.</p>
-        <button type="button" onClick={() => router.push("/dashboard/campaigns")} className="text-sm underline">캠페인 목록으로</button>
+        <button type="button" onClick={() => router.push("/demo/campaigns")} className="text-sm underline">캠페인 목록으로</button>
       </div>
     );
   }
@@ -535,7 +535,7 @@ export default function CampaignDetailPage() {
     <div className="flex h-full">
       <div className={cn("min-w-0 flex-1 overflow-y-auto p-6 md:p-8", mobileDetail && "hidden md:block")}>
         <div className="mx-auto w-full max-w-4xl">
-          <button type="button" onClick={() => router.push("/dashboard/campaigns")} className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={() => router.push("/demo/campaigns")} className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             <ChevronLeft className="size-4" /> 캠페인
           </button>
 
