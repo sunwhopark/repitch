@@ -58,12 +58,14 @@ export function CampaignDetailClient({
   applications,
   products,
   brandId,
+  proposalCount = 0,
 }: {
   campaign: DbCampaign;
   product: Product | null;
   applications: CampaignApplication[];
   products: { id: string; name: string }[];
   brandId: string;
+  proposalCount?: number;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -172,14 +174,23 @@ export function CampaignDetailClient({
           <div><div className="text-xs text-muted-foreground">체험 기간</div><div className="mt-0.5 font-medium">{campaign.trial_weeks ? `${campaign.trial_weeks}주` : "—"}</div></div>
         </div>
 
-        {/* 퍼널 */}
+        {/* 퍼널 — 역제안 도착은 실 proposal 수(인박스로 연결) */}
         <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-5 sm:divide-y-0">
-          {FUNNEL.map((s) => (
-            <div key={s.key} className="p-4">
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-              <div className="mt-1.5 text-2xl font-bold tabular-nums">{f[s.key]}</div>
-            </div>
-          ))}
+          {FUNNEL.map((s) => {
+            const isProp = s.key === "proposals";
+            const val = isProp ? proposalCount : f[s.key];
+            const body = (
+              <>
+                <div className="text-xs text-muted-foreground">{s.label}</div>
+                <div className="mt-1.5 text-2xl font-bold tabular-nums">{val}</div>
+              </>
+            );
+            return isProp && proposalCount > 0 ? (
+              <a key={s.key} href="/dashboard/inbox" className="p-4 transition-colors hover:bg-foreground/[0.03]">{body}</a>
+            ) : (
+              <div key={s.key} className="p-4">{body}</div>
+            );
+          })}
         </div>
 
         {/* 지원자 */}

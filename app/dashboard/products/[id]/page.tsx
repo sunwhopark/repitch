@@ -23,5 +23,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .eq("product_id", id)
     .order("created_at", { ascending: false });
 
-  return <ProductDetailClient product={product} campaigns={campaigns ?? []} brandId={user!.id} />;
+  // 이 제품으로 직접 도착한 역제안 수 (제품 상세 실연동)
+  const { count: proposalCount } = await supabase
+    .from("proposal_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", id);
+
+  return <ProductDetailClient product={product} campaigns={campaigns ?? []} brandId={user!.id} proposalCount={proposalCount ?? 0} />;
 }

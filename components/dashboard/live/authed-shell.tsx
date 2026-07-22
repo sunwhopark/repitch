@@ -32,7 +32,7 @@ function titleFor(pathname: string) {
   return hit?.title ?? "대시보드";
 }
 
-export function AuthedShell({ brand, children }: { brand: BrandProfile; children: React.ReactNode }) {
+export function AuthedShell({ brand, inboxCount = 0, children }: { brand: BrandProfile; inboxCount?: number; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(true);
@@ -84,6 +84,9 @@ export function AuthedShell({ brand, children }: { brand: BrandProfile; children
               >
                 <item.icon className="size-[16px]" strokeWidth={1.5} />
                 <span className="truncate text-[13px] tracking-wide">{item.title}</span>
+                {item.href === "/dashboard/inbox" && inboxCount > 0 && (
+                  <span className="ml-auto flex min-w-[20px] items-center justify-center rounded-full bg-foreground/10 px-1.5 text-[10px] font-medium text-foreground">{inboxCount}</span>
+                )}
               </button>
             ))}
           </nav>

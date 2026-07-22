@@ -29,6 +29,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     .eq("brand_id", user!.id)
     .order("created_at", { ascending: false });
 
+  // 이 캠페인으로 도착한 역제안 수 (역제안 도착 funnel 실연결)
+  const { count: proposalCount } = await supabase
+    .from("proposal_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("campaign_id", id);
+
   const { product, ...rest } = campaign as DbCampaign & { product: Product | null };
 
   return (
@@ -38,6 +44,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       applications={(applications ?? []) as CampaignApplication[]}
       products={products ?? []}
       brandId={user!.id}
+      proposalCount={proposalCount ?? 0}
     />
   );
 }

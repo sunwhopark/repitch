@@ -91,6 +91,7 @@ export function ProposalDetail({
   onBack,
   onClose,
   banner,
+  authAxisBadge = "AI 분석 (데모)",
 }: {
   item: ScoredProposal;
   record: DecisionRecord | null;
@@ -98,6 +99,7 @@ export function ProposalDetail({
   onBack: () => void;
   onClose: () => void;
   banner?: ReactNode;
+  authAxisBadge?: string; // 실서비스 인박스는 "AI 분석 대기 (Phase 3)" 전달. 데모는 기본값 유지.
 }) {
   const p = item.proposal;
   const decision = record?.decision ?? null;
@@ -161,7 +163,7 @@ export function ProposalDetail({
 
         <AxisSection axis={item.fit} />
         <AxisSection axis={item.quality} />
-        <AxisSection axis={item.auth} badge="AI 분석 (데모)" />
+        <AxisSection axis={item.auth} badge={authAxisBadge} />
 
         {evidence.length > 0 && (
           <section className="mt-5">

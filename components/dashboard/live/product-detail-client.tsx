@@ -13,10 +13,12 @@ export function ProductDetailClient({
   product,
   campaigns,
   brandId,
+  proposalCount = 0,
 }: {
   product: Product;
   campaigns: LinkedCampaign[];
   brandId: string;
+  proposalCount?: number;
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -64,6 +66,14 @@ export function ProductDetailClient({
             {product.description && <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{product.description}</p>}
           </div>
         </div>
+
+        {/* 받은 역제안 (제품 직접) */}
+        {proposalCount > 0 && (
+          <a href="/dashboard/inbox" className="mt-4 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm transition-colors hover:bg-foreground/[0.03]">
+            <span className="font-medium">받은 역제안 {proposalCount}건</span>
+            <span className="text-muted-foreground">인박스에서 보기 →</span>
+          </a>
+        )}
 
         {/* 연결된 캠페인 */}
         <section className="mt-4">

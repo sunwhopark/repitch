@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AuthedShell } from "@/components/dashboard/live/authed-shell";
 import { ApprovalPending } from "@/components/auth/approval-pending";
+import { getInboxItems, inboxUnreadCount } from "@/lib/dashboard/inbox-data";
 import type { BrandProfile } from "@/components/dashboard/live/profile-edit-modal";
 
 // 인증 전용 대시보드. proxy.ts가 1차 방어(비로그인 → /login), 여기서 브랜드 행을
@@ -26,5 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return <ApprovalPending brandName={brand?.brand_name} />;
   }
 
-  return <AuthedShell brand={brand}>{children}</AuthedShell>;
+  const inboxCount = inboxUnreadCount(await getInboxItems(supabase, user.id));
+
+  return <AuthedShell brand={brand} inboxCount={inboxCount}>{children}</AuthedShell>;
 }
