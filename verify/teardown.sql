@@ -10,8 +10,10 @@ delete from public.proposal_submissions
 -- 2) 2-C 계정 삭제 → brands/influencers/products/campaigns/campaign_applications cascade.
 delete from auth.users where email in ('verify-brand@repitch.kr', 'verify-inf@repitch.kr');
 
--- 3) 2-B p2b 테스트: Storage 이미지(계정 삭제로 cascade 안 됨) 먼저, 그다음 계정.
-delete from storage.objects
-  where bucket_id = 'product-images'
-    and (storage.foldername(name))[1] in (select id::text from auth.users where email like 'p2b+%@repitch.kr');
+-- 3) 2-B p2b 테스트 계정(남아있다면). ※ 이미 정리됐으면 no-op.
 delete from auth.users where email like 'p2b+%@repitch.kr';
+
+-- ※ Storage 정리는 SQL 불가(storage.objects는 protect_delete로 직접 DELETE 차단).
+--   업로드 이미지가 있으면 Supabase 대시보드 Storage UI에서 수동 삭제하거나,
+--   코드 검증 플로우에서 supabase.storage.from('product-images').remove([...])로 삭제.
+--   (이번 2-C 검증 시드는 이미지 업로드가 없어 Storage 정리 대상 없음.)
