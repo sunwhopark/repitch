@@ -131,7 +131,15 @@ function ReservationFlow({
             }}
           />
           <span className="email-consent-text">
-            <span className="email-consent-policy">[개인정보 처리방침]</span>{" "}
+            <a
+              className="email-consent-policy"
+              href="/privacy"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              [개인정보 처리방침]
+            </a>{" "}
             개인정보 수집·이용에 동의합니다{" "}
             <span className="email-consent-required">(필수)</span>
           </span>

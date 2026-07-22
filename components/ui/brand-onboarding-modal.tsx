@@ -440,7 +440,7 @@ function BrandOnboardingFlow({
                   />
                   <span className="email-consent-text">
                     <span className="email-consent-required">[필수]</span> 서비스 이용약관 동의{" "}
-                    <span className="email-consent-policy">보기</span>
+                    <a className="email-consent-policy" href="/terms" target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>보기</a>
                   </span>
                 </label>
 
@@ -453,7 +453,7 @@ function BrandOnboardingFlow({
                   />
                   <span className="email-consent-text">
                     <span className="email-consent-required">[필수]</span> 개인정보 처리방침 동의{" "}
-                    <span className="email-consent-policy">보기</span>
+                    <a className="email-consent-policy" href="/privacy" target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>보기</a>
                   </span>
                 </label>
 
@@ -466,7 +466,7 @@ function BrandOnboardingFlow({
                   />
                   <span className="email-consent-text">
                     <span className="email-consent-required">[필수]</span> 사업자정보 활용 동의{" "}
-                    <span className="email-consent-policy">보기</span>
+                    <a className="email-consent-policy" href="/privacy" target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>보기</a>
                   </span>
                 </label>
 
@@ -479,7 +479,7 @@ function BrandOnboardingFlow({
                   />
                   <span className="email-consent-text">
                     [선택] 마케팅 정보 수신 동의{" "}
-                    <span className="email-consent-policy">보기</span>
+                    <a className="email-consent-policy" href="/privacy" target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>보기</a>
                   </span>
                 </label>
               </div>

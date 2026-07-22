@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { supabase } from "@/lib/supabase/client";
+import { CONSENT_PRIVACY, CONSENT_THIRD_PARTY, LEGAL_ROUTES } from "@/lib/legal";
 
 type Platform = "instagram" | "youtube";
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
@@ -1740,6 +1741,8 @@ function OnboardingFlow({ onClose }: { onClose: () => void }) {
   const [contactEmail, setContactEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [privacyConsent, setPrivacyConsent] = useState(false);
+  // 제3자 제공 동의(문구 ②) — 채널·제안 내용 및 (선정 시) 배송지가 브랜드에 제공됨.
+  const [thirdPartyConsent, setThirdPartyConsent] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [contentTypes, setContentTypes] = useState<
     Record<string, { selected: boolean; count: number }>
@@ -2044,6 +2047,10 @@ function OnboardingFlow({ onClose }: { onClose: () => void }) {
       setEmailError("개인정보 수집에 동의해주세요.");
       return;
     }
+    if (!thirdPartyConsent) {
+      setEmailError("제3자 제공에 동의해주세요.");
+      return;
+    }
 
     const contentTypesPayload = contentTypeOptions
       .filter((label) => contentTypes[label].selected && contentTypes[label].count > 0)
@@ -2075,6 +2082,7 @@ function OnboardingFlow({ onClose }: { onClose: () => void }) {
       upload_date: uploadDate || null,
       contact_email: trimmedEmail,
       privacy_consent: privacyConsent,
+      third_party_consent: thirdPartyConsent,
       consent_at: new Date().toISOString(),
     };
 
@@ -2897,9 +2905,43 @@ function OnboardingFlow({ onClose }: { onClose: () => void }) {
                         }}
                       />
                       <span className="email-consent-text">
-                        <span className="email-consent-policy">[개인정보 처리방침]</span>{" "}
-                        개인정보 수집·이용에 동의합니다{" "}
-                        <span className="email-consent-required">(필수)</span>
+                        <span className="email-consent-required">(필수)</span>{" "}
+                        {CONSENT_PRIVACY.body}{" "}
+                        <a
+                          className="email-consent-policy"
+                          href={LEGAL_ROUTES.privacy}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          [개인정보 처리방침]
+                        </a>
+                      </span>
+                    </label>
+                    <label className="email-consent">
+                      <input
+                        className="email-consent-checkbox"
+                        type="checkbox"
+                        checked={thirdPartyConsent}
+                        onChange={(event) => {
+                          setThirdPartyConsent(event.target.checked);
+                          if (emailError) {
+                            setEmailError("");
+                          }
+                        }}
+                      />
+                      <span className="email-consent-text">
+                        <span className="email-consent-required">(필수)</span>{" "}
+                        {CONSENT_THIRD_PARTY.body}{" "}
+                        <a
+                          className="email-consent-policy"
+                          href={LEGAL_ROUTES.privacy}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          [개인정보 처리방침]
+                        </a>
                       </span>
                     </label>
                     {emailError && (
@@ -2917,7 +2959,7 @@ function OnboardingFlow({ onClose }: { onClose: () => void }) {
                       className="email-modal-submit"
                       type="button"
                       onClick={confirmEmail}
-                      disabled={!privacyConsent || isSaving}
+                      disabled={!privacyConsent || !thirdPartyConsent || isSaving}
                     >
                       {isSaving ? "전송 중…" : "제안서 보내기"}
                     </button>

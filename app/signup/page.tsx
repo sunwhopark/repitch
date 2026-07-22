@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { BRAND_CATEGORIES } from "@/lib/brand-application-options";
+import { CONSENT_PRIVACY, CONSENT_MARKETING, LEGAL_ROUTES } from "@/lib/legal";
 
 // 브랜드 프로필 옵션 — brands 테이블 CHECK 및 매칭 필터와 동일한 값.
 const CREATOR_TYPES = ["실물", "버추얼", "상관없음"];
@@ -26,6 +27,20 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
     >
       {label}
     </button>
+  );
+}
+
+function ConsentRow({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: React.ReactNode }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 size-4 shrink-0 accent-foreground"
+      />
+      <span className="text-[13px] leading-relaxed text-muted-foreground">{children}</span>
+    </label>
   );
 }
 
@@ -51,6 +66,11 @@ export default function SignupPage() {
   const [brandName, setBrandName] = useState("");
   const [contactName, setContactName] = useState("");
 
+  // 동의 (필수 2 + 선택 1) — brands 행에 시각/여부 저장(가입 메타데이터 → 트리거).
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+
   // Step 2 (브랜드 프로필)
   const [category, setCategory] = useState("");
   const [creatorType, setCreatorType] = useState("");
@@ -61,7 +81,8 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   const emailOk = /.+@.+\..+/.test(email);
-  const canStep1 = emailOk && password.length >= 8 && brandName.trim() !== "" && contactName.trim() !== "";
+  const canStep1 =
+    emailOk && password.length >= 8 && brandName.trim() !== "" && contactName.trim() !== "" && agreedTerms && agreedPrivacy;
   const canSubmit = category !== "" && creatorType !== "" && gender !== "" && countries.length > 0;
 
   function toggleCountry(c: string) {
@@ -84,6 +105,10 @@ export default function SignupPage() {
           pref_creator_type: creatorType,
           pref_creator_gender: gender,
           target_countries: countries,
+          // 동의 — 트리거가 brands.agreed_*_at / marketing_opt_in 에 저장.
+          agreed_terms: agreedTerms,
+          agreed_privacy: agreedPrivacy,
+          marketing_opt_in: marketingOptIn,
         },
       },
     });
@@ -149,6 +174,26 @@ export default function SignupPage() {
               <Field label="담당자명">
                 <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="예: 김리피" className="rounded-xl" />
               </Field>
+
+              <div className="grid gap-3 rounded-xl border border-border p-3.5">
+                <ConsentRow checked={agreedTerms} onChange={setAgreedTerms}>
+                  <span className="font-medium text-foreground">(필수)</span>{" "}
+                  <a href={LEGAL_ROUTES.terms} target="_blank" rel="noreferrer" className="font-medium text-foreground underline underline-offset-2">
+                    이용약관
+                  </a>
+                  에 동의합니다
+                </ConsentRow>
+                <ConsentRow checked={agreedPrivacy} onChange={setAgreedPrivacy}>
+                  <span className="font-medium text-foreground">(필수)</span> {CONSENT_PRIVACY.body}{" "}
+                  <a href={LEGAL_ROUTES.privacy} target="_blank" rel="noreferrer" className="font-medium text-foreground underline underline-offset-2">
+                    [개인정보 처리방침]
+                  </a>
+                </ConsentRow>
+                <ConsentRow checked={marketingOptIn} onChange={setMarketingOptIn}>
+                  <span className="font-medium text-foreground">(선택)</span> {CONSENT_MARKETING.body}
+                </ConsentRow>
+              </div>
+
               <Button type="button" disabled={!canStep1} onClick={() => setStep(2)} className="h-11 rounded-full font-bold">
                 다음
               </Button>
