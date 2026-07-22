@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Inbox,
@@ -35,8 +35,17 @@ function titleFor(pathname: string) {
 export function AuthedShell({ brand, inboxCount = 0, children }: { brand: BrandProfile; inboxCount?: number; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // 인박스 산출 근거의 "설정에서 조정" 링크(?settings=…) → 프로필 모달 열고 파라미터 제거.
+  useEffect(() => {
+    if (searchParams.get("settings")) {
+      setSettingsOpen(true);
+      router.replace(pathname);
+    }
+  }, [searchParams, pathname, router]);
 
   async function logout() {
     const supabase = createClient();

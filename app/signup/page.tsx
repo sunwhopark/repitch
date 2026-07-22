@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { BRAND_CATEGORIES } from "@/lib/brand-application-options";
 import { CONSENT_PRIVACY, CONSENT_MARKETING, LEGAL_ROUTES } from "@/lib/legal";
+import { recommendedWeights } from "@/lib/scoring/recommended-weights";
 
 // 브랜드 프로필 옵션 — brands 테이블 CHECK 및 매칭 필터와 동일한 값.
 const CREATOR_TYPES = ["실물", "버추얼", "상관없음"];
@@ -109,6 +110,8 @@ export default function SignupPage() {
           agreed_terms: agreedTerms,
           agreed_privacy: agreedPrivacy,
           marketing_opt_in: marketingOptIn,
+          // 카테고리 추천 평가 가중치 → 트리거가 brands.weights에 저장(설정에서 조정).
+          weights: recommendedWeights(category),
         },
       },
     });
@@ -133,6 +136,9 @@ export default function SignupPage() {
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             영업일 기준 1~3일 이내에 입력하신 이메일로 서비스 이용 안내를 보내드려요.
             메일 확인 후 로그인하시면 대시보드를 이용하실 수 있어요.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-foreground/70">
+            {category} 브랜드 추천 평가 설정이 적용됐어요 — 설정에서 조정할 수 있어요.
           </p>
           <a href="/login" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 text-sm font-bold text-background hover:bg-foreground/90">
             로그인 화면으로

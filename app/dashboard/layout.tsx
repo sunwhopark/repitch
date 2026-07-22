@@ -16,9 +16,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect("/login");
 
+  // select("*") — weights 컬럼(0014)이 아직 없어도 안전(있으면 포함).
   const { data: brand } = await supabase
     .from("brands")
-    .select("id, brand_name, category, contact_name, pref_creator_type, pref_creator_gender, target_countries, approved")
+    .select("*")
     .eq("id", user.id)
     .single<BrandProfile>();
 

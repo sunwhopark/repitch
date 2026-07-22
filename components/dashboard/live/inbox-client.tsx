@@ -181,6 +181,7 @@ export function InboxClient({ items, brandId }: { items: InboxItem[]; brandId: s
             onBack={() => setSelectedId(null)}
             onClose={() => setSelectedId(null)}
             authAxisBadge="AI 분석 대기 (Phase 3)"
+            weightsSettingsHref="/dashboard/inbox?settings=weights"
             banner={
               selected.campaignId ? (
                 <a href={`/dashboard/campaigns/${selected.campaignId}`} className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-[13px] hover:bg-muted">

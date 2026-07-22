@@ -7,7 +7,16 @@
 // available:false로 표시하고 축·종합점수를 재환산한다(엔진의 미수집 규칙과 동일한 공식).
 //   → Phase 3에서 LLM 파이프라인 연동 시 이 후처리를 제거하고 실값을 넣는다.
 
-import { scoreProposal, WEIGHTS, passesFilters, type ScoredProposal, type Indicator, type Axis } from "@/lib/scoring";
+import {
+  scoreProposal,
+  passesFilters,
+  DEFAULT_WEIGHTS,
+  type ScoredProposal,
+  type Indicator,
+  type Axis,
+  type ScoreBrand,
+  type ScoreWeights,
+} from "@/lib/scoring";
 import type { SeedProposal, ContentPlan } from "@/components/dashboard/seed-proposals";
 import type { DecisionRecord } from "@/components/dashboard/proposal-detail";
 import type { DashboardFilters } from "@/components/dashboard/filter-modal";
@@ -142,22 +151,31 @@ export function applyPendingExclusions(s: ScoredProposal): ScoredProposal {
 
   const fit: Axis = { ...s.fit, indicators: s.fit.indicators.map((i) => (i.key === "A3" && i.available ? { ...i, note: i.note ?? A3_NOTE } : i)) };
 
-  const composite = round1(fit.score * WEIGHTS.fit + quality.score * WEIGHTS.quality + auth.score * WEIGHTS.auth);
+  const w = s.weights;
+  const wSum = w.fit + w.quality + w.auth || 1;
+  const composite = round1((fit.score * w.fit + quality.score * w.quality + auth.score * w.auth) / wSum);
   const labels = Array.from(
     new Set([...fit.indicators, ...quality.indicators, ...auth.indicators].filter((i) => !i.available && i.note).map((i) => i.note as string)),
   );
   return { ...s, fit, quality, auth, composite, labels };
 }
 
-// 실 proposal → 후처리된 ScoredProposal.
-export function scoreLive(p: RawProposal, inf: RawInfluencer, trialStartedAt: string | null): ScoredProposal {
-  return applyPendingExclusions(scoreProposal(proposalToSeed(p, inf, trialStartedAt)));
+// 실 proposal → 후처리된 ScoredProposal. brand=Fit 기준(캠페인 타겟 or 브랜드 프로필),
+// weights=브랜드별 평가 가중치(brands.weights).
+export function scoreLive(
+  p: RawProposal,
+  inf: RawInfluencer,
+  trialStartedAt: string | null,
+  brand: ScoreBrand,
+  weights: ScoreWeights = DEFAULT_WEIGHTS,
+): ScoredProposal {
+  return applyPendingExclusions(scoreProposal(proposalToSeed(p, inf, trialStartedAt), undefined, brand, weights));
 }
 
 // 회원건만 하드필터 적용. 비회원(프로필 없음)은 항상 통과(과잉 필터 방지).
-export function passesLiveFilter(scored: ScoredProposal, inf: RawInfluencer, filters: DashboardFilters): boolean {
+export function passesLiveFilter(scored: ScoredProposal, inf: RawInfluencer, filters: DashboardFilters, brand: ScoreBrand): boolean {
   if (!hasProfile(inf)) return true;
-  return passesFilters(scored.proposal, filters);
+  return passesFilters(scored.proposal, filters, brand);
 }
 
 // ── decisions 행 ⇄ UI DecisionRecord ─────────────────────────────────────────

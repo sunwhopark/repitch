@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { BRAND_CATEGORIES } from "@/lib/brand-application-options";
+import { DEFAULT_WEIGHTS, type ScoreWeights } from "@/lib/scoring";
+import { recommendedWeights } from "@/lib/scoring/recommended-weights";
 
 export type BrandProfile = {
   id: string;
@@ -19,7 +21,14 @@ export type BrandProfile = {
   pref_creator_gender: string | null;
   target_countries: string[] | null;
   approved: boolean;
+  weights?: ScoreWeights | null;
 };
+
+const AXES: { key: keyof ScoreWeights; label: string; desc: string }[] = [
+  { key: "fit", label: "적합도", desc: "카테고리·타겟·단가가 브랜드와 맞는지" },
+  { key: "quality", label: "크리에이터 역량", desc: "성과 효율·팔로워 반응·성장세" },
+  { key: "auth", label: "진정성", desc: "실사용 기간·서사·채널과의 어울림" },
+];
 
 const CREATOR_TYPES = ["실물", "버추얼", "상관없음"];
 const GENDERS = ["여성", "남성", "상관없음"];
@@ -58,6 +67,7 @@ export function ProfileEditModal({
   const [creatorType, setCreatorType] = useState(brand.pref_creator_type ?? "");
   const [gender, setGender] = useState(brand.pref_creator_gender ?? "");
   const [countries, setCountries] = useState<string[]>(brand.target_countries ?? []);
+  const [weights, setWeights] = useState<ScoreWeights>(brand.weights ?? DEFAULT_WEIGHTS);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,6 +79,7 @@ export function ProfileEditModal({
       setCreatorType(brand.pref_creator_type ?? "");
       setGender(brand.pref_creator_gender ?? "");
       setCountries(brand.target_countries ?? []);
+      setWeights(brand.weights ?? DEFAULT_WEIGHTS);
       setError("");
     }
   }, [open, brand]);
@@ -76,6 +87,10 @@ export function ProfileEditModal({
   function toggleCountry(c: string) {
     setCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
+
+  const wSum = weights.fit + weights.quality + weights.auth;
+  const rec = recommendedWeights(category);
+  const setW = (key: keyof ScoreWeights, v: number) => setWeights((w) => ({ ...w, [key]: Math.max(0, Math.min(100, v || 0)) }));
 
   async function save() {
     setSaving(true);
@@ -90,6 +105,7 @@ export function ProfileEditModal({
         pref_creator_type: creatorType || null,
         pref_creator_gender: gender || null,
         target_countries: countries,
+        weights,
       })
       .eq("id", brand.id);
     if (error) {
@@ -142,10 +158,43 @@ export function ProfileEditModal({
             </div>
           </div>
 
+          {/* 평가 가중치 */}
+          <div className="grid gap-2 border-t border-border pt-5">
+            <div className="flex items-baseline justify-between">
+              <Label className="text-[13px]">평가 가중치</Label>
+              <span className={cn("text-[11px] tabular-nums", wSum === 100 ? "text-muted-foreground" : "text-destructive")}>합계 {wSum}/100</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">종합점수를 낼 때 세 축의 비중이에요. 합이 100이어야 저장돼요.</p>
+            <div className="mt-1 grid gap-2.5">
+              {AXES.map((a) => (
+                <div key={a.key} className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{a.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{a.desc}</div>
+                  </div>
+                  <div className="flex shrink-0 items-center rounded-lg border border-border">
+                    <button type="button" onClick={() => setW(a.key, weights[a.key] - 5)} className="h-9 w-8 text-muted-foreground hover:text-foreground">−</button>
+                    <input
+                      type="number"
+                      value={weights[a.key]}
+                      onChange={(e) => setW(a.key, Number(e.target.value.replace(/[^0-9]/g, "")))}
+                      className="h-9 w-12 border-x border-border bg-transparent text-center text-sm tabular-nums outline-none"
+                    />
+                    <button type="button" onClick={() => setW(a.key, weights[a.key] + 5)} className="h-9 w-8 text-muted-foreground hover:text-foreground">+</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">{category || "기본"} 추천값 {rec.fit}/{rec.quality}/{rec.auth}</span>
+              <button type="button" onClick={() => setWeights(rec)} className="font-medium text-foreground underline underline-offset-2">추천값으로 되돌리기</button>
+            </div>
+          </div>
+
           {error && <p className="text-[13px] text-destructive">{error}</p>}
 
-          <Button type="button" disabled={saving} onClick={save} className="h-11 w-full rounded-full font-bold">
-            {saving ? "저장 중…" : "저장"}
+          <Button type="button" disabled={saving || wSum !== 100} onClick={save} className="h-11 w-full rounded-full font-bold">
+            {saving ? "저장 중…" : wSum !== 100 ? "가중치 합을 100으로 맞춰주세요" : "저장"}
           </Button>
         </ModalBody>
       </ModalContent>

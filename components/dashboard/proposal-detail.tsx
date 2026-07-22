@@ -92,6 +92,7 @@ export function ProposalDetail({
   onClose,
   banner,
   authAxisBadge = "AI 분석 (데모)",
+  weightsSettingsHref,
 }: {
   item: ScoredProposal;
   record: DecisionRecord | null;
@@ -100,6 +101,7 @@ export function ProposalDetail({
   onClose: () => void;
   banner?: ReactNode;
   authAxisBadge?: string; // 실서비스 인박스는 "AI 분석 대기 (Phase 3)" 전달. 데모는 기본값 유지.
+  weightsSettingsHref?: string; // 전달 시 "적용 가중치" 줄 표시(+설정 링크). 데모는 미전달 → 미표시.
 }) {
   const p = item.proposal;
   const decision = record?.decision ?? null;
@@ -160,6 +162,15 @@ export function ProposalDetail({
             </div>
           ))}
         </div>
+
+        {weightsSettingsHref && (
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>
+              적용 가중치 · 적합도 {item.weights.fit} · 역량 {item.weights.quality} · 진정성 {item.weights.auth}
+            </span>
+            <a href={weightsSettingsHref} className="font-medium text-foreground underline underline-offset-2">설정에서 조정</a>
+          </div>
+        )}
 
         <AxisSection axis={item.fit} />
         <AxisSection axis={item.quality} />

@@ -69,9 +69,28 @@ export type ScoredProposal = {
   labels: string[];
   price: PriceInfo;
   trialWeeks: number;
+  weights: ScoreWeights; // 종합점수에 적용된 축 가중치(주입식)
 };
 
 export const WEIGHTS = { fit: 0.4, quality: 0.3, auth: 0.3 };
+
+// 주입식 파라미터 — 산출식·배점·규칙은 불변, "누구 기준으로/어떤 비중으로"만 주입.
+// Fit 기준 브랜드(카테고리 A1 / 타겟 A2). 기본값 = DEMO_BRAND → /demo·기존 호출부 무변경.
+export type ScoreBrand = {
+  category: string;
+  target_ages: string[];
+  target_gender: "여성" | "남성" | string;
+  target_countries?: string[];
+};
+const DEFAULT_BRAND: ScoreBrand = {
+  category: DEMO_BRAND.category,
+  target_ages: DEMO_BRAND.targetAges,
+  target_gender: DEMO_BRAND.targetGender,
+};
+
+// 축 가중치(정수, 합 ≈ 100). 기본 40/30/30 = 기존 0.4/0.3/0.3와 동일 → /demo 점수 불변.
+export type ScoreWeights = { fit: number; quality: number; auth: number };
+export const DEFAULT_WEIGHTS: ScoreWeights = { fit: 40, quality: 30, auth: 30 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -103,8 +122,8 @@ function trialWeeks(p: SeedProposal) {
 }
 
 // ── A. Fit ──────────────────────────────────────────────────────────
-function fitAxis(p: SeedProposal): Axis {
-  const brandCat = DEMO_BRAND.category;
+function fitAxis(p: SeedProposal, brand: ScoreBrand): Axis {
+  const brandCat = brand.category;
   const cats = p.selected_categories;
 
   // A1 카테고리 일치 (35 / 인접 18 / 불일치 0)
@@ -123,11 +142,11 @@ function fitAxis(p: SeedProposal): Axis {
   // A2 오디언스 겹침 = Σ(타겟 연령 비율) × 성별계수 × 35 (오디언스 데이터 있을 때만)
   let A2: Indicator;
   if (p.audience_stats) {
-    const inTarget = DEMO_BRAND.targetAges.reduce(
+    const inTarget = brand.target_ages.reduce(
       (s, a) => s + (p.audience_stats!.age[a] || 0),
       0,
     );
-    const coef = genderCoef(p.audience_stats, DEMO_BRAND.targetGender);
+    const coef = genderCoef(p.audience_stats, brand.target_gender === "남성" ? "남성" : "여성");
     A2 = {
       key: "A2",
       label: "타겟 고객 일치",
@@ -311,14 +330,16 @@ function priceInfo(p: SeedProposal): PriceInfo {
 export function scoreProposal(
   p: SeedProposal,
   pool: SeedProposal[] = SEED_PROPOSALS,
+  brand: ScoreBrand = DEFAULT_BRAND,
+  weights: ScoreWeights = DEFAULT_WEIGHTS,
 ): ScoredProposal {
-  const fit = fitAxis(p);
+  const fit = fitAxis(p, brand);
   const quality = qualityAxis(p, pool);
   const auth = authAxis(p);
+  // 가중 종합 — 합으로 정규화(합 100이면 기존과 동일). 배점·산출식은 불변.
+  const wSum = weights.fit + weights.quality + weights.auth || 1;
   const composite = round1(
-    fit.score * WEIGHTS.fit +
-      quality.score * WEIGHTS.quality +
-      auth.score * WEIGHTS.auth,
+    (fit.score * weights.fit + quality.score * weights.quality + auth.score * weights.auth) / wSum,
   );
   const labels = [
     ...new Set(
@@ -328,7 +349,7 @@ export function scoreProposal(
         .map((i) => i.note as string),
     ),
   ];
-  return { proposal: p, fit, quality, auth, composite, labels, price: priceInfo(p), trialWeeks: trialWeeks(p) };
+  return { proposal: p, fit, quality, auth, composite, labels, price: priceInfo(p), trialWeeks: trialWeeks(p), weights };
 }
 
 export function scoreAll(pool: SeedProposal[] = SEED_PROPOSALS): ScoredProposal[] {
@@ -337,17 +358,17 @@ export function scoreAll(pool: SeedProposal[] = SEED_PROPOSALS): ScoredProposal[
     .sort((a, b) => b.composite - a.composite);
 }
 
-function categoryCompatible(p: SeedProposal): boolean {
-  const brandCat = DEMO_BRAND.category;
+function categoryCompatible(p: SeedProposal, brand: ScoreBrand): boolean {
+  const brandCat = brand.category;
   return (
     p.selected_categories.includes(brandCat) ||
     p.selected_categories.some((c) => (ADJACENCY[brandCat] || []).includes(c))
   );
 }
 
-export function passesFilters(p: SeedProposal, f: DashboardFilters): boolean {
+export function passesFilters(p: SeedProposal, f: DashboardFilters, brand: ScoreBrand = DEFAULT_BRAND): boolean {
   // 하드 필터: 카테고리 완전 비호환(인접도 아님)은 항상 제외 (설계서 §4.3-1).
-  if (!categoryCompatible(p)) return false;
+  if (!categoryCompatible(p, brand)) return false;
   if (f.creatorType !== "상관없음" && p.creator_type !== f.creatorType) return false;
   if (f.gender !== "상관없음" && p.creator_gender !== f.gender) return false;
   if (!f.countries.includes("상관없음")) {
@@ -357,8 +378,8 @@ export function passesFilters(p: SeedProposal, f: DashboardFilters): boolean {
 }
 
 // 제외 사유(한눈에) — 카테고리 우선, 그다음 사용자 필터.
-export function exclusionReason(p: SeedProposal, f: DashboardFilters): string {
-  if (!categoryCompatible(p)) return "카테고리 비호환";
+export function exclusionReason(p: SeedProposal, f: DashboardFilters, brand: ScoreBrand = DEFAULT_BRAND): string {
+  if (!categoryCompatible(p, brand)) return "카테고리 비호환";
   if (f.creatorType !== "상관없음" && p.creator_type !== f.creatorType)
     return `유형 불일치`;
   if (f.gender !== "상관없음" && p.creator_gender !== f.gender)
@@ -382,11 +403,22 @@ export function exclusionReason(p: SeedProposal, f: DashboardFilters): string {
    Auth : C1 체험 8주+→30, C2 27, C3 22, C4 13 · max 100 → 92
    종합 : 90.1×0.4 + 87.5×0.3 + 92×0.3 ≈ 89.9
 
- ▸ p4 (헬스·IG·21k팔·40k뷰·60만·추세 없음)  ← 단가 과다 + 상투어
+ ▸ p4 (헬스·IG·21k팔·40k뷰·60만·추세 없음)  ← 단가 과다 + 상투어  [기본=뷰티 브랜드]
    Fit  : A1=0(헬스↔뷰티 인접 아님), A2=(0.5+0.3)×0.3×35=8.4, A3: 60/4=15 /3.0=5.0 → 0
           → 8.4
    Quality: B1 백분위 33%×30=10, B2 구간(3+2+1=6/12→10)→15, B4 2/5→8, B5 제외
             → (10+15+8)/(30+30+20)×100 = 41.25
    Auth : C1 체험 2주→10, C2 12, C3 8(상투어), C4 6 → 36
    종합 : 8.4×0.4 + 41.25×0.3 + 36×0.3 ≈ 26.5
+
+ ── 주입식(v1.2) 검증 케이스 ──
+ ▸ 브랜드 주입(비-뷰티): p4를 brand.category="헬스·피트니스" 기준으로 평가
+   Fit  : A1=35(헬스 일치로 뒤집힘), A2=8.4(타겟 20·30대 여성 동일 가정), A3=0
+          → (35+8.4+0)/100 = 43.4    (뷰티 기준이면 A1=0 → Fit 8.4)
+   종합(40/30/30): 43.4×0.4 + 41.25×0.3 + 36×0.3 ≈ 40.5    (뷰티 기준 26.5)
+   → Quality·Auth는 브랜드와 무관(불변), Fit만 기준 브랜드로 바뀜.
+
+ ▸ 가중치 변경: p1(Fit 90.1·Q 87.5·Auth 92)을 35/25/40(적합/역량/진정성)로
+   종합: (90.1×35 + 87.5×25 + 92×40)/100 = 90.2    (40/30/30이면 89.9)
+   → 합으로 정규화하므로 40/30/30은 기존 0.4/0.3/0.3과 완전히 동일(=/demo 불변).
 */
