@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ?as는 랜딩 토글 맥락일 뿐 — 화면 문구/가입 링크에만 반영. 실제 역할은 로그인 후 행으로 판정.
+  const asInfluencer = searchParams.get("as") === "influencer";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,14 +33,24 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    // 역할 분기: influencers 행 있으면 인플루언서, 없으면 브랜드(/dashboard).
+    // 역할 분기: 실제 테이블 행이 최종 권위(?as와 달라도 실제 역할을 따름).
     // 인플루언서는 프로필 미완성(채널 없음)이면 작성 유도(/me), 완성이면 /campaigns.
-    const { data: inf } = await supabase.from("influencers").select("id, channels").eq("id", data.user!.id).maybeSingle();
-    if (!inf) {
-      router.push("/dashboard");
-    } else {
+    const uid = data.user!.id;
+    const [{ data: inf }, { data: brand }] = await Promise.all([
+      supabase.from("influencers").select("id, channels").eq("id", uid).maybeSingle(),
+      supabase.from("brands").select("id").eq("id", uid).maybeSingle(),
+    ]);
+    if (inf) {
       const incomplete = !Array.isArray(inf.channels) || inf.channels.length === 0;
       router.push(incomplete ? "/me" : "/campaigns");
+    } else if (brand) {
+      router.push("/dashboard");
+    } else {
+      // 두 역할 행이 다 없는 엣지(가입 직후 트리거 실패 등) — 진입시키지 않고 안내 + 로그아웃.
+      await supabase.auth.signOut();
+      setError("계정 역할을 확인할 수 없어요. 가입이 완료되지 않았을 수 있습니다. 다시 가입하거나 문의해 주세요.");
+      setLoading(false);
+      return;
     }
     router.refresh();
   }
@@ -48,8 +61,10 @@ export default function LoginPage() {
         <a href="/" className="mb-8 flex justify-center">
           <img src="/repitch_wordmark_alpha.png" alt="repitch" className="h-7 w-auto dark:invert" />
         </a>
-        <h1 className="text-xl font-semibold tracking-tight">로그인</h1>
-        <p className="mt-1 text-sm text-muted-foreground">브랜드 계정으로 로그인해 주세요.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{asInfluencer ? "인플루언서 로그인" : "로그인"}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {asInfluencer ? "인플루언서 계정으로 로그인해 주세요." : "브랜드 계정으로 로그인해 주세요."}
+        </p>
 
         <form onSubmit={onSubmit} className="mt-6 grid gap-4">
           <div className="grid gap-2">
@@ -62,7 +77,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="brand@company.com"
+              placeholder={asInfluencer ? "creator@email.com" : "brand@company.com"}
               className="rounded-xl"
             />
           </div>
@@ -89,11 +104,22 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-[13px] text-muted-foreground">
           아직 계정이 없으신가요?{" "}
-          <a href="/signup" className="font-semibold text-foreground underline underline-offset-2">
+          <a
+            href={asInfluencer ? "/signup?as=influencer" : "/signup?as=brand"}
+            className="font-semibold text-foreground underline underline-offset-2"
+          >
             가입 신청
           </a>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
   );
 }

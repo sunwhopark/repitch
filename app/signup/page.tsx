@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Megaphone, Sparkles } from "lucide-react";
 import { BrandSignup } from "@/components/auth/brand-signup";
 import { InfluencerSignup } from "@/components/auth/influencer-signup";
 import { SignupFrame } from "@/components/auth/signup-shared";
 
-export default function SignupPage() {
-  const [role, setRole] = useState<null | "brand" | "influencer">(null);
+function SignupInner() {
+  const searchParams = useSearchParams();
+  // ?as로 진입하면 해당 역할 화면을 선선택(뒤로가기로 다시 고를 수 있음).
+  const as = searchParams.get("as");
+  const [role, setRole] = useState<null | "brand" | "influencer">(
+    as === "influencer" || as === "brand" ? as : null,
+  );
 
   if (role === "brand") return <BrandSignup onBack={() => setRole(null)} />;
   if (role === "influencer") return <InfluencerSignup onBack={() => setRole(null)} />;
@@ -44,5 +50,13 @@ export default function SignupPage() {
         이미 계정이 있으신가요? <a href="/login" className="font-semibold text-foreground underline underline-offset-2">로그인</a>
       </p>
     </SignupFrame>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupInner />
+    </Suspense>
   );
 }
