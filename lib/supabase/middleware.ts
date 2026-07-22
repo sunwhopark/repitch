@@ -36,20 +36,16 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // Unauthenticated → /dashboard/* redirects to /login.
-  if (!user && path.startsWith("/dashboard")) {
+  // 인증 필요: 브랜드 대시보드(/dashboard/*) + 인플루언서 인증 화면(/my, /me).
+  // /campaigns(공개 카탈로그)·/login·/signup·/·/demo·/privacy·/terms 는 공개.
+  const authRequired = path.startsWith("/dashboard") || path === "/my" || path === "/me";
+  if (!user && authRequired) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
-
-  // Authenticated user on /login or /signup → /dashboard (approval gate lives
-  // in the dashboard layout).
-  if (user && (path === "/login" || path === "/signup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
+  // (로그인/가입 후 라우팅은 역할 분기가 필요해 페이지에서 처리 — proxy에서 강제
+  //  /dashboard 리다이렉트 없음)
 
   // IMPORTANT: return supabaseResponse so the refreshed Set-Cookie survives.
   return supabaseResponse;

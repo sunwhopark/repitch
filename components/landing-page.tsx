@@ -6,21 +6,13 @@ import { ApplicantBand } from '@/components/ui/applicant-band';
 import { InfluencerBody } from '@/components/ui/influencer-body';
 import { BrandBody } from '@/components/ui/brand-body';
 import { Footer } from '@/components/ui/footer-section';
-import { OnboardingModal } from '@/components/ui/onboarding-modal';
 
 export function LandingPage() {
   const [audience, setAudience] = React.useState<Audience>('influencer');
-  const [startOpen, setStartOpen] = React.useState(false);
   const router = useRouter();
 
-  // Header "로그인": Brand → 실서비스 로그인, Influencer → reverse-proposal onboarding.
-  const handleStart = () => {
-    if (audience === 'brand') {
-      router.push('/login');
-    } else {
-      setStartOpen(true);
-    }
-  };
+  // Header "로그인": 브랜드·인플루언서 모두 /login으로 (역할 분기는 로그인/가입에서).
+  const handleStart = () => router.push('/login');
 
   return (
     <div className="flex w-full flex-col">
@@ -34,8 +26,6 @@ export function LandingPage() {
         {audience === 'influencer' ? <InfluencerBody /> : <BrandBody />}
       </main>
       <Footer />
-      {/* Header-triggered onboarding (separate from InfluencerBody's own modal). */}
-      <OnboardingModal open={startOpen} onClose={() => setStartOpen(false)} />
     </div>
   );
 }

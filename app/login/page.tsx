@@ -19,7 +19,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       // 이메일 미확인 / 자격 불일치 등. 승인 여부는 /dashboard 레이아웃 게이트에서 판정.
       setError(
@@ -30,7 +30,15 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    // 역할 분기: influencers 행 있으면 인플루언서, 없으면 브랜드(/dashboard).
+    // 인플루언서는 프로필 미완성(채널 없음)이면 작성 유도(/me), 완성이면 /campaigns.
+    const { data: inf } = await supabase.from("influencers").select("id, channels").eq("id", data.user!.id).maybeSingle();
+    if (!inf) {
+      router.push("/dashboard");
+    } else {
+      const incomplete = !Array.isArray(inf.channels) || inf.channels.length === 0;
+      router.push(incomplete ? "/me" : "/campaigns");
+    }
     router.refresh();
   }
 
