@@ -1,14 +1,16 @@
-import { Package } from "lucide-react";
-import { LivePage, EmptyState } from "@/components/dashboard/live/empty-state";
+import { createClient } from "@/lib/supabase/server";
+import { ProductsClient } from "@/components/dashboard/live/products-client";
+import type { Product } from "@/components/dashboard/live/types";
 
-export default function ProductsPage() {
-  return (
-    <LivePage title="제품" description="체험단·캠페인에 쓸 제품을 관리해요.">
-      <EmptyState
-        icon={Package}
-        title="등록된 제품이 없어요"
-        description="캠페인을 만들 때 제품 정보를 입력하면 여기에 모여요."
-      />
-    </LivePage>
-  );
+// 자기 브랜드 제품 목록(실테이블). RLS가 brand_id=uid를 보장하지만 쿼리도 명시.
+export default async function ProductsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("brand_id", user!.id)
+    .order("created_at", { ascending: false });
+
+  return <ProductsClient products={(data ?? []) as Product[]} brandId={user!.id} />;
 }

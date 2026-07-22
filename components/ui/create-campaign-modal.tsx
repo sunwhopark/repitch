@@ -95,16 +95,20 @@ export function CreateCampaignModal({
   onSubmit,
   initial,
   prefill,
+  products,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (c: Campaign) => void;
   initial?: Campaign;
   prefill?: Partial<CampaignForm>; // 생성 모드 프리필(예: DB 매칭 조건 → 캠페인 만들기)
+  products?: { id: string; name: string }[]; // 실서비스: 기존 제품 선택지(데모는 미전달)
 }) {
   const isEdit = !!initial;
+  const hasProducts = (products?.length ?? 0) > 0;
   const [step, setStep] = React.useState(0);
   const [draft, setDraft] = React.useState<Draft>(defaultDraft);
+  const [productMode, setProductMode] = React.useState<"existing" | "new">("new");
   const [pdfHint, setPdfHint] = React.useState(false);
   const [calOpen, setCalOpen] = React.useState(false);
   const [refInput, setRefInput] = React.useState("");
@@ -113,6 +117,7 @@ export function CreateCampaignModal({
     if (open) {
       setDraft(initial?.form ? { ...defaultDraft(), ...initial.form } : { ...defaultDraft(), ...(prefill ?? {}) });
       setStep(0);
+      setProductMode(initial?.form?.productId ? "existing" : "new");
       setPdfHint(false);
       setCalOpen(false);
       setRefInput("");
@@ -141,8 +146,12 @@ export function CreateCampaignModal({
     if (f) set("imageUrl", URL.createObjectURL(f)); // 실서비스: 스토리지 업로드 후 URL 저장
   };
 
+  const step1Valid =
+    productMode === "existing"
+      ? !!draft.productId
+      : draft.product.trim() !== "" && draft.category !== "";
   const valid = [
-    draft.product.trim() !== "" && draft.category !== "",
+    step1Valid,
     true,
     draft.ages.length > 0 && draft.gender !== "",
     true,
@@ -194,6 +203,39 @@ export function CreateCampaignModal({
           {/* 1. 제품 정보 */}
           {step === 0 && (
             <>
+              {/* 실서비스: 기존 제품 선택 / 새 제품 입력 분기 (products 전달 시에만) */}
+              {hasProducts && (
+                <div className="flex w-fit rounded-full border border-border p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setProductMode("existing")}
+                    className={cn("rounded-full px-3 py-1 text-xs font-medium", productMode === "existing" ? "bg-foreground text-background" : "text-muted-foreground")}
+                  >
+                    기존 제품 선택
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setProductMode("new"); set("productId", undefined); }}
+                    className={cn("rounded-full px-3 py-1 text-xs font-medium", productMode === "new" ? "bg-foreground text-background" : "text-muted-foreground")}
+                  >
+                    새 제품 등록
+                  </button>
+                </div>
+              )}
+
+              {productMode === "existing" && hasProducts ? (
+                <Field label="제품 선택 *">
+                  <select
+                    value={draft.productId ?? ""}
+                    onChange={(e) => set("productId", e.target.value || undefined)}
+                    className="h-10 w-full rounded-xl border border-border bg-transparent px-3 text-sm outline-none focus:border-foreground/40"
+                  >
+                    <option value="">제품을 선택하세요</option>
+                    {products!.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </Field>
+              ) : (
+                <>
               <div className="flex flex-wrap items-center gap-2">
                 {/* 실서비스: 기획서 PDF → LLM 파싱으로 필드 자동 채움. UI만. */}
                 <button type="button" onClick={() => setPdfHint(true)} className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
@@ -231,6 +273,8 @@ export function CreateCampaignModal({
               <Field label="제품 상세 URL" hint="제품 페이지 연동 자리 (선택)">
                 <Input placeholder="https://" value={draft.productUrl} onChange={(e) => set("productUrl", e.target.value)} className={inputCls} />
               </Field>
+                </>
+              )}
             </>
           )}
 

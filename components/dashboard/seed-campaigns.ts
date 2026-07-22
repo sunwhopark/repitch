@@ -73,6 +73,7 @@ export type CampaignFunnel = {
 // 코멘트). 시드 캠페인은 이 폼이 없어도 되도록 전부 optional-friendly하게 읽는다.
 export type CampaignForm = {
   // 1 제품 정보
+  productId?: string; // 실서비스: 기존 products 행 연결(선택 시). 미설정=새 제품 입력. 데모 미사용.
   product: string;
   category: string;
   intro: string;

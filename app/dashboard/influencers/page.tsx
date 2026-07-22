@@ -6,8 +6,8 @@ export default function InfluencersPage() {
     <LivePage title="인플루언서 DB" description="캠페인에 맞는 크리에이터를 찾아봐요.">
       <EmptyState
         icon={Users}
-        title="아직 매칭할 데이터가 없어요"
-        description="캠페인을 만들고 역제안이 쌓이면, 조건에 맞는 크리에이터가 여기에서 매칭돼요."
+        title="아직 등록된 인플루언서가 없어요"
+        description="인플루언서 가입이 시작되면 여기서 조건에 맞는 크리에이터를 탐색할 수 있어요."
       />
     </LivePage>
   );
