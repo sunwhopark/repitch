@@ -50,6 +50,18 @@ export type RawProposal = {
   campaign_id: string | null;
   product_id: string | null;
   application_id: string | null;
+  // Phase 3-c LLM 진정성 평가(0019). 없으면 C2~C4 대기 표시 유지.
+  auth_scores: AuthScoresRow | null;
+  auth_status: "pending" | "done" | "failed" | null;
+  auth_evaluated_at: string | null;
+  auth_model: string | null;
+};
+
+// LLM(Gemini) C2~C4 평가 결과 shape(0~100 + 인용 + 근거).
+export type AuthScoresRow = {
+  c2: { score: number; quotes: string[]; rationale: string };
+  c3: { score: number; quotes: string[]; rationale: string; flags: string[] };
+  c4: { score: number; quotes: string[]; rationale: string };
 };
 
 export type RawInfluencer = {
@@ -96,6 +108,7 @@ export function proposalToSeed(p: RawProposal, inf: RawInfluencer, trialStartedA
   const vch = inf?.channels?.find((c) => c.verified && c.platform === p.platform);
   const profileCount = vch?.follower_count ?? p.profile_count ?? 0;
   const peakViews = vch?.avg_views ?? p.peak_views ?? 0;
+  const authScores = p.auth_status === "done" ? p.auth_scores : null;
   return {
     id: p.id,
     status: "신규",
@@ -128,11 +141,28 @@ export function proposalToSeed(p: RawProposal, inf: RawInfluencer, trialStartedA
     audience_stats: undefined,
     recent_views_30d: undefined,
     trial_received_at: trialStartedAt ?? p.created_at,
-    // LLM/큐레이터 미연동 → 플레이스홀더(후처리에서 제외되어 점수 미반영). evidence는 빈 배열.
+    // 큐레이터(B4) 미연동 → 플레이스홀더(후처리에서 제외).
     b4: { rating: 3, comment: "" },
-    c2: { level: 0, score: 0, evidence: [] },
-    c3: { level: 0, score: 0, evidence: [], ad_speak_flags: [] },
-    c4: { level: 0, score: 0, evidence: [] },
+    // C2~C4: LLM 평가 완료(auth_scores)면 0~100을 엔진 배점(30/25/15)으로 환산·인용 주입.
+    // 미평가면 0 플레이스홀더(applyPendingExclusions에서 제외 표시).
+    ...c234FromAuth(authScores),
+  };
+}
+
+// auth_scores(0~100) → 엔진 C2/C3/C4 입력. null이면 0 플레이스홀더.
+function c234FromAuth(a: AuthScoresRow | null) {
+  if (!a) {
+    return {
+      c2: { level: 0, score: 0, evidence: [] as string[] },
+      c3: { level: 0, score: 0, evidence: [] as string[], ad_speak_flags: [] as string[] },
+      c4: { level: 0, score: 0, evidence: [] as string[] },
+    };
+  }
+  const scale = (s: number, max: number) => Math.round((Math.max(0, Math.min(100, s)) / 100) * max);
+  return {
+    c2: { level: 0, score: scale(a.c2.score, 30), evidence: a.c2.quotes },
+    c3: { level: 0, score: scale(a.c3.score, 25), evidence: a.c3.quotes, ad_speak_flags: a.c3.flags ?? [] },
+    c4: { level: 0, score: scale(a.c4.score, 15), evidence: a.c4.quotes },
   };
 }
 
@@ -148,9 +178,21 @@ const PENDING_C = "AI 분석 대기 (Phase 3)";
 const PENDING_B4 = "큐레이션 대기";
 const A3_NOTE = "단가 벤치마크 · 데이터 축적 중";
 
-// 엔진 출력 후처리 — C2~C4·B4 제외+환산, A3 소주석, 종합점수·labels 재계산.
-export function applyPendingExclusions(s: ScoredProposal): ScoredProposal {
-  const auth: Axis = { ...s.auth, indicators: s.auth.indicators.map((i) => (["C2", "C3", "C4"].includes(i.key) ? { ...i, available: false, note: PENDING_C } : i)) };
+// 엔진 출력 후처리 — B4 제외, A3 소주석, 종합점수·labels 재계산.
+// authScores 있으면 C2~C4는 실값으로 유지(제외 해제)하고 근거(rationale)를 raw로 노출.
+// 없으면 기존대로 C2~C4 제외(AI 분석 대기).
+export function applyPendingExclusions(s: ScoredProposal, authScores: AuthScoresRow | null = null): ScoredProposal {
+  const auth: Axis = {
+    ...s.auth,
+    indicators: s.auth.indicators.map((i) => {
+      if (!["C2", "C3", "C4"].includes(i.key)) return i;
+      if (authScores) {
+        const key = i.key.toLowerCase() as "c2" | "c3" | "c4";
+        return { ...i, available: true, note: undefined, raw: authScores[key].rationale || undefined };
+      }
+      return { ...i, available: false, note: PENDING_C };
+    }),
+  };
   auth.score = rescale(auth.indicators);
 
   const quality: Axis = { ...s.quality, indicators: s.quality.indicators.map((i) => (i.key === "B4" ? { ...i, available: false, note: PENDING_B4 } : i)) };
@@ -176,7 +218,8 @@ export function scoreLive(
   brand: ScoreBrand,
   weights: ScoreWeights = DEFAULT_WEIGHTS,
 ): ScoredProposal {
-  return applyPendingExclusions(scoreProposal(proposalToSeed(p, inf, trialStartedAt), undefined, brand, weights));
+  const authScores = p.auth_status === "done" ? p.auth_scores : null;
+  return applyPendingExclusions(scoreProposal(proposalToSeed(p, inf, trialStartedAt), undefined, brand, weights), authScores);
 }
 
 // 회원건만 하드필터 적용. 비회원(프로필 없음)은 항상 통과(과잉 필터 방지).

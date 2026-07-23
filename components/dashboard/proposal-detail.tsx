@@ -93,6 +93,10 @@ export function ProposalDetail({
   banner,
   authAxisBadge = "AI 분석 (데모)",
   weightsSettingsHref,
+  authStatus,
+  onEvaluate,
+  evaluating,
+  evalError,
 }: {
   item: ScoredProposal;
   record: DecisionRecord | null;
@@ -100,8 +104,12 @@ export function ProposalDetail({
   onBack: () => void;
   onClose: () => void;
   banner?: ReactNode;
-  authAxisBadge?: string; // 실서비스 인박스는 "AI 분석 대기 (Phase 3)" 전달. 데모는 기본값 유지.
+  authAxisBadge?: string; // 실서비스 인박스는 진정성 배지("Gemini 분석 · M/D" 등) 전달. 데모는 기본값.
   weightsSettingsHref?: string; // 전달 시 "적용 가중치" 줄 표시(+설정 링크). 데모는 미전달 → 미표시.
+  authStatus?: "pending" | "done" | "failed"; // 실서비스 전용. 미평가면 [분석 실행] 노출.
+  onEvaluate?: () => void;
+  evaluating?: boolean;
+  evalError?: string;
 }) {
   const p = item.proposal;
   const decision = record?.decision ?? null;
@@ -176,6 +184,22 @@ export function ProposalDetail({
         <AxisSection axis={item.quality} />
         <AxisSection axis={item.auth} badge={authAxisBadge} />
 
+        {/* 진정성 미평가(대기/실패) — 수동 분석 실행 */}
+        {onEvaluate && authStatus && authStatus !== "done" && (
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={evaluating}
+              onClick={onEvaluate}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-bold text-background disabled:bg-muted disabled:text-muted-foreground"
+            >
+              {evaluating ? "분석 중…" : authStatus === "failed" ? "분석 다시 실행" : "분석 실행"}
+            </button>
+            <span className="text-[11px] text-muted-foreground">C2~C4 진정성을 Gemini로 평가해요.</span>
+            {evalError && <span className="text-[11px] text-destructive">{evalError}</span>}
+          </div>
+        )}
+
         {evidence.length > 0 && (
           <section className="mt-5">
             {(more ? evidence : evidence.slice(0, 2)).map((e, i) => (
@@ -192,9 +216,11 @@ export function ProposalDetail({
               {more ? "접기" : "근거 더 보기 · 서사 전문 보기"}
             </button>
             {more && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-[12px] leading-relaxed text-muted-foreground">{p.story_text}</p>}
-            <div className="mt-3 text-[12px] text-muted-foreground">
-              <b className="text-foreground">큐레이터</b> {p.b4.comment} ({p.b4.rating}/5)
-            </div>
+            {p.b4.comment && (
+              <div className="mt-3 text-[12px] text-muted-foreground">
+                <b className="text-foreground">큐레이터</b> {p.b4.comment} ({p.b4.rating}/5)
+              </div>
+            )}
           </section>
         )}
 

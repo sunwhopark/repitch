@@ -63,11 +63,23 @@ export async function getInboxItems(supabase: SupabaseClient, userId: string): P
       hasProfile: hasProfile(inf),
       displayName: inf?.display_name ?? p.profile_name,
       verified: !!inf?.channels?.some((c) => c.verified && c.platform === p.platform),
+      authStatus: (p.auth_status ?? "pending") as "pending" | "done" | "failed",
+      authBadge: authAxisBadge(p.auth_status, p.auth_evaluated_at),
       decision: decisionRecordFromRow(decByProposal.get(p.id) ?? null),
       visible,
       exclusionReason: visible ? null : exclusionReason(scored.proposal, filters, bp),
     };
   });
+}
+
+// 진정성 축 배지 문구 — 평가 완료면 "Gemini 분석 · M/D", 실패면 재시도, 그 외 대기.
+function authAxisBadge(status: string | null, evaluatedAt: string | null): string {
+  if (status === "done") {
+    const d = evaluatedAt ? evaluatedAt.split("T")[0].split("-") : null;
+    return d ? `Gemini 분석 · ${+d[1]}/${+d[2]}` : "Gemini 분석";
+  }
+  if (status === "failed") return "분석 실패 · 재시도";
+  return "AI 분석 대기";
 }
 
 // 사이드바 배지 = 표시(필터 통과) + 미응답 건수.

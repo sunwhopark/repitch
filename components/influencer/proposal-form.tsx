@@ -103,7 +103,7 @@ export function ProposalForm({ ctx, profile, email }: { ctx: ProposalContext; pr
     setSaving(true);
     setError("");
     const supabase = createClient();
-    const { error: e } = await supabase.from("proposal_submissions").insert({
+    const { data: inserted, error: e } = await supabase.from("proposal_submissions").insert({
       brand_name: ctx.brandName ?? "",
       product_name: ctx.productName ?? "",
       platform,
@@ -136,9 +136,18 @@ export function ProposalForm({ ctx, profile, email }: { ctx: ProposalContext; pr
       ship_recipient: ctx.ship?.recipient ?? null,
       ship_phone: ctx.ship?.phone ?? null,
       ship_address: ctx.ship?.address ?? null,
-    });
+    }).select("id").single();
     setSaving(false);
     if (e) { setError("제출에 실패했어요. 잠시 후 다시 시도해 주세요."); return; }
+    // 진정성 평가 자동 트리거(비동기 fire-and-forget) — 실패해도 제출은 성공 처리.
+    // 결과는 브랜드 인박스에서 표시되며, 실패 시 인박스의 [분석 실행]으로 재시도.
+    if (inserted?.id) {
+      fetch("/api/proposals/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposalId: inserted.id }),
+      }).catch(() => {});
+    }
     router.push("/my?tab=proposals");
     router.refresh();
   }

@@ -24,6 +24,8 @@ export type InboxItem = {
   hasProfile: boolean;
   displayName: string;
   verified: boolean;
+  authStatus: "pending" | "done" | "failed";
+  authBadge: string;
   decision: DecisionRecord | null;
   visible: boolean;
   exclusionReason: string | null;
@@ -84,6 +86,8 @@ export function InboxClient({ items, brandId }: { items: InboxItem[]; brandId: s
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showExcluded, setShowExcluded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
+  const [evalErr, setEvalErr] = useState("");
 
   const visible = useMemo(() => items.filter((i) => i.visible), [items]);
   const excluded = useMemo(() => items.filter((i) => !i.visible), [items]);
@@ -107,6 +111,26 @@ export function InboxClient({ items, brandId }: { items: InboxItem[]; brandId: s
     await supabase.from("decisions").upsert(decisionRowFromRecord(rec, selected.id, brandId), { onConflict: "proposal_id" });
     setSaving(false);
     router.refresh();
+  }
+
+  // 진정성 평가 수동 재시도(pending/failed) — 서버가 Gemini 호출 후 저장.
+  async function evaluate() {
+    if (!selected || evaluating) return;
+    setEvaluating(true);
+    setEvalErr("");
+    try {
+      const res = await fetch("/api/proposals/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposalId: selected.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEvalErr(data.error ?? "분석에 실패했어요."); setEvaluating(false); return; }
+      router.refresh();
+    } catch {
+      setEvalErr("네트워크 오류. 다시 시도해 주세요.");
+    }
+    setEvaluating(false);
   }
 
   if (items.length === 0) {
@@ -182,7 +206,11 @@ export function InboxClient({ items, brandId }: { items: InboxItem[]; brandId: s
             onDecision={decide}
             onBack={() => setSelectedId(null)}
             onClose={() => setSelectedId(null)}
-            authAxisBadge="AI 분석 대기 (Phase 3)"
+            authAxisBadge={selected.authBadge}
+            authStatus={selected.authStatus}
+            onEvaluate={evaluate}
+            evaluating={evaluating}
+            evalError={evalErr}
             weightsSettingsHref="/dashboard/inbox?settings=weights"
             banner={
               selected.campaignId ? (
