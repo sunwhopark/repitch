@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Megaphone, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Megaphone, MoreHorizontal, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 import { CreateCampaignModal } from "@/components/ui/create-campaign-modal";
@@ -204,7 +204,10 @@ export function CampaignDetailClient({
                 <div key={a.id} className="border-b border-border px-4 py-3 last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{a.ship_recipient ?? "지원자"}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium">{a.display_name ?? a.ship_recipient ?? "지원자"}</span>
+                        {a.verified && <BadgeCheck className="size-3.5 shrink-0 text-foreground" aria-label="채널 인증" />}
+                      </div>
                       <div className="text-xs text-muted-foreground">{APP_STATUS_LABEL[a.status]}{a.hold_reason ? ` · ${a.hold_reason}` : ""}</div>
                     </div>
                     <div className="flex shrink-0 gap-1.5">

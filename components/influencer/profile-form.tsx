@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, LogOut, Sparkles, BadgeCheck, RefreshCw } from "lucide-react";
+import { Plus, X, LogOut, Sparkles, BadgeCheck, RefreshCw, Link2Off } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ type Channel = {
   verified_at?: string;
   channel_id?: string;
   title?: string;
+  ig_user_id?: string;
 };
 
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -88,6 +89,48 @@ export function ProfileForm({ profile }: { profile: InfluencerProfile }) {
     setVerifyingIdx(null);
   }
 
+  // Instagram 계정 연동(OAuth). authorize 라우트로 풀페이지 이동 → 콜백이 /me?ig=…로 복귀.
+  const [igMsg, setIgMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [igBusyIdx, setIgBusyIdx] = useState<number | null>(null);
+  useEffect(() => {
+    const ig = new URLSearchParams(window.location.search).get("ig");
+    if (!ig) return;
+    const map: Record<string, { kind: "ok" | "err"; text: string }> = {
+      connected: { kind: "ok", text: "Instagram 계정이 연동됐어요." },
+      denied: { kind: "err", text: "연동이 취소됐어요." },
+      error: { kind: "err", text: "연동에 실패했어요. 다시 시도해 주세요." },
+      unconfigured: { kind: "err", text: "Instagram 연동이 설정되지 않았어요. (서버 키 없음)" },
+    };
+    if (map[ig]) setIgMsg(map[ig]);
+    // URL 정리(뒤로가기/새로고침 시 재노출 방지)
+    window.history.replaceState({}, "", "/me");
+  }, []);
+
+  function connectIg() {
+    window.location.href = "/api/channels/instagram/authorize";
+  }
+  async function refreshIg(i: number) {
+    setIgBusyIdx(i);
+    setVerifyErr((e) => ({ ...e, [i]: "" }));
+    try {
+      const res = await fetch("/api/channels/instagram/refresh", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setVerifyErr((e) => ({ ...e, [i]: data.error ?? "새로고침에 실패했어요." })); setIgBusyIdx(null); return; }
+      setCh(i, { handle: data.username ?? channels[i].handle, follower_count: data.followers, avg_views: data.avgViews, verified: true, verified_at: new Date().toISOString() });
+    } catch {
+      setVerifyErr((e) => ({ ...e, [i]: "네트워크 오류. 다시 시도해 주세요." }));
+    }
+    setIgBusyIdx(null);
+  }
+  async function disconnectIg(i: number) {
+    setIgBusyIdx(i);
+    try {
+      await fetch("/api/channels/instagram/disconnect", { method: "POST" });
+      setCh(i, { follower_count: null, avg_views: null, verified: false, verified_at: undefined, ig_user_id: undefined });
+    } catch { /* noop */ }
+    setIgBusyIdx(null);
+  }
+
   async function save() {
     setSaving(true);
     setError("");
@@ -139,6 +182,12 @@ export function ProfileForm({ profile }: { profile: InfluencerProfile }) {
         </div>
       )}
 
+      {igMsg && (
+        <div className={cn("mt-4 rounded-xl border px-4 py-2.5 text-[13px]", igMsg.kind === "ok" ? "border-border bg-card" : "border-destructive/40 bg-destructive/5 text-destructive")}>
+          {igMsg.text}
+        </div>
+      )}
+
       <div className="mt-5 grid gap-6">
         <div className="grid gap-2">
           <Label className="text-[13px]">활동명</Label>
@@ -151,6 +200,7 @@ export function ProfileForm({ profile }: { profile: InfluencerProfile }) {
           <div className="grid gap-2.5">
             {channels.map((ch, i) => {
               const isYT = ch.platform === "youtube";
+              const isIG = ch.platform === "instagram";
               return (
                 <div key={i} className="rounded-xl border border-border p-3">
                   <div className="flex items-center gap-2">
@@ -186,14 +236,54 @@ export function ProfileForm({ profile }: { profile: InfluencerProfile }) {
                       {verifyErr[i] && <p className="mt-1.5 text-[11px] text-destructive">{verifyErr[i]}</p>}
                       <p className="mt-1.5 text-[11px] text-muted-foreground">YouTube 채널을 확인하면 구독자·평균 조회수가 자동으로 채워지고 인증 뱃지가 붙어요.</p>
                     </div>
+                  ) : isIG && ch.verified ? (
+                    // Instagram 연동됨 — Graph API 지표(자동)
+                    <div className="mt-2 rounded-lg bg-muted/40 p-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <BadgeCheck className="size-4 text-foreground" />
+                        <span className="text-sm font-semibold">@{ch.handle}</span>
+                        <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">계정 인증</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
+                        <span>팔로워 {ch.follower_count?.toLocaleString() ?? "—"}</span>
+                        <span>평균 조회수 {ch.avg_views?.toLocaleString() ?? "—"}</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <button type="button" disabled={igBusyIdx === i} onClick={() => refreshIg(i)} className="inline-flex items-center gap-1 text-[11px] font-medium text-foreground underline underline-offset-2">
+                          <RefreshCw className={cn("size-3", igBusyIdx === i && "animate-spin")} /> 지표 새로고침
+                        </button>
+                        <button type="button" disabled={igBusyIdx === i} onClick={() => disconnectIg(i)} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+                          <Link2Off className="size-3" /> 연동 해제
+                        </button>
+                      </div>
+                      {verifyErr[i] && <p className="mt-1.5 text-[11px] text-destructive">{verifyErr[i]}</p>}
+                    </div>
+                  ) : isIG ? (
+                    // 미연동 IG — 계정 연동 유도 + 수동 입력 폴백
+                    <div className="mt-2">
+                      <button type="button" onClick={connectIg} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-3.5" aria-hidden>
+                          <rect x="2.5" y="2.5" width="19" height="19" rx="5" />
+                          <circle cx="12" cy="12" r="4.2" />
+                          <circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none" />
+                        </svg>
+                        Instagram 계정 연동
+                      </button>
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">비즈니스·크리에이터 계정을 연동하면 팔로워·평균 조회수가 자동으로 채워지고 인증 뱃지가 붙어요.</p>
+                      <div className="mt-2 flex gap-2">
+                        <Input type="number" inputMode="numeric" value={ch.follower_count ?? ""} onChange={(e) => setCh(i, { follower_count: e.target.value ? Number(e.target.value) : null })} placeholder="팔로워" className="h-9 rounded-lg" />
+                        <Input type="number" inputMode="numeric" value={ch.avg_views ?? ""} onChange={(e) => setCh(i, { avg_views: e.target.value ? Number(e.target.value) : null })} placeholder="평균 조회수" className="h-9 rounded-lg" />
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">또는 본인 입력 · 연동 시 자동 검증돼요.</p>
+                    </div>
                   ) : (
-                    // IG/틱톡 — 수동 입력(본인 입력)
+                    // 틱톡 — 수동 입력(본인 입력)
                     <>
                       <div className="mt-2 flex gap-2">
                         <Input type="number" inputMode="numeric" value={ch.follower_count ?? ""} onChange={(e) => setCh(i, { follower_count: e.target.value ? Number(e.target.value) : null })} placeholder="팔로워" className="h-9 rounded-lg" />
                         <Input type="number" inputMode="numeric" value={ch.avg_views ?? ""} onChange={(e) => setCh(i, { avg_views: e.target.value ? Number(e.target.value) : null })} placeholder="평균 조회수" className="h-9 rounded-lg" />
                       </div>
-                      <p className="mt-1.5 text-[11px] text-muted-foreground">본인 입력 · 자동 검증은 YouTube만 지원해요.</p>
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">본인 입력 · 자동 검증은 YouTube·Instagram만 지원해요.</p>
                     </>
                   )}
                 </div>

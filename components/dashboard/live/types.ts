@@ -73,6 +73,9 @@ export type CampaignApplication = {
   shipped_at: string | null;
   delivered_at: string | null;
   created_at: string;
+  // 조인(0017 definer) — 지원자 공개 프로필. RLS로 직접 조인이 막혀 서버에서 병합.
+  verified?: boolean;
+  display_name?: string | null;
 };
 
 export const SALES_CHANNELS = ["올리브영", "쿠팡", "네이버 스마트스토어", "자사몰", "기타"] as const;

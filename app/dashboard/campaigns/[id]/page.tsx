@@ -23,6 +23,16 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     .eq("campaign_id", id)
     .order("created_at", { ascending: false });
 
+  // 지원자 공개 프로필(활동명·인증) — influencers RLS로 직접 조인 불가 → definer 병합.
+  const { data: applicantProfiles } = await supabase.rpc("get_campaign_applicant_profiles", { p_campaign_id: id });
+  const profileByInf = new Map(
+    ((applicantProfiles ?? []) as { influencer_id: string; display_name: string | null; verified: boolean }[]).map((p) => [p.influencer_id, p]),
+  );
+  const mergedApplications = ((applications ?? []) as CampaignApplication[]).map((a) => {
+    const prof = profileByInf.get(a.influencer_id);
+    return { ...a, verified: prof?.verified ?? false, display_name: prof?.display_name ?? null };
+  });
+
   const { data: products } = await supabase
     .from("products")
     .select("id, name")
@@ -41,7 +51,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     <CampaignDetailClient
       campaign={{ ...rest, product } as DbCampaign}
       product={(product ?? null) as Product | null}
-      applications={(applications ?? []) as CampaignApplication[]}
+      applications={mergedApplications}
       products={products ?? []}
       brandId={user!.id}
       proposalCount={proposalCount ?? 0}

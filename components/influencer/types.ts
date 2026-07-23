@@ -100,6 +100,7 @@ export type InfluencerProfile = {
     verified_at?: string;
     channel_id?: string;
     title?: string;
+    ig_user_id?: string;
   }[] | null;
   category: string[] | null;
   creator_type: string | null;
