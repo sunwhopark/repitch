@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Inbox, ChevronDown, ArrowRight } from "lucide-react";
+import { Inbox, ChevronDown, ArrowRight, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 import {
@@ -23,6 +23,7 @@ export type InboxItem = {
   targetType: "campaign" | "product" | "general";
   hasProfile: boolean;
   displayName: string;
+  verified: boolean;
   decision: DecisionRecord | null;
   visible: boolean;
   exclusionReason: string | null;
@@ -51,6 +52,7 @@ function ListRow({ item, active, onClick }: { item: InboxItem; active: boolean; 
           <div className="flex items-center gap-1.5">
             <PlatformIcon platform={s.proposal.platform} className="size-3.5 text-muted-foreground" />
             <span className="truncate text-sm font-semibold">{item.displayName}</span>
+            {item.verified && <BadgeCheck className="size-3.5 shrink-0 text-foreground" aria-label="채널 인증" />}
             <span className="text-xs text-muted-foreground">{fmt(s.proposal.profile_count)}</span>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">{s.proposal.product_name} · {s.proposal.expected_price}만원</div>

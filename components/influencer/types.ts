@@ -91,7 +91,16 @@ export type MySentProposalRow = {
 export type InfluencerProfile = {
   id: string;
   display_name: string | null;
-  channels: { platform: string; handle: string; follower_count: number | null; avg_views: number | null }[] | null;
+  channels: {
+    platform: string;
+    handle: string;
+    follower_count: number | null;
+    avg_views: number | null;
+    verified?: boolean;
+    verified_at?: string;
+    channel_id?: string;
+    title?: string;
+  }[] | null;
   category: string[] | null;
   creator_type: string | null;
   gender: string | null;

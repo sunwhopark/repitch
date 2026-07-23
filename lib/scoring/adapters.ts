@@ -58,7 +58,7 @@ export type RawInfluencer = {
   creator_type: "실물" | "버추얼" | null;
   gender: "여성" | "남성" | null;
   countries: string[] | null;
-  channels: { platform?: string; handle?: string; follower_count?: number; avg_views?: number }[] | null;
+  channels: { platform?: string; handle?: string; follower_count?: number; avg_views?: number; verified?: boolean }[] | null;
 } | null;
 
 export type RawDecision = {
@@ -89,6 +89,13 @@ export const hasProfile = (inf: RawInfluencer) => !!(inf && inf.creator_type && 
 // trialStartedAt: 캠페인 지원건의 발송/수령/선정 시각(체험 시작). 없으면 제출일 폴백.
 export function proposalToSeed(p: RawProposal, inf: RawInfluencer, trialStartedAt: string | null): SeedProposal {
   const platform: "instagram" | "youtube" = p.platform === "youtube" ? "youtube" : "instagram"; // tiktok→IG 취급(엔진 미지원)
+  // 인증(verified) 채널 지표 우선 — 회원이 [채널 확인]으로 검증한 구독자/평균 조회수를
+  // 제출값보다 신뢰. 같은 플랫폼의 verified 채널이 있으면 그 값으로 대체(엔진 로직 불변).
+  // B1 성과 효율 = 조회수/팔로워라 분모(구독자)·분자(조회수)를 한 스냅샷으로 맞춰야
+  // 일관됨 → verified면 avg_views도 함께 peak_views(엔진의 효율 분자)로 사용.
+  const vch = inf?.channels?.find((c) => c.verified && c.platform === p.platform);
+  const profileCount = vch?.follower_count ?? p.profile_count ?? 0;
+  const peakViews = vch?.avg_views ?? p.peak_views ?? 0;
   return {
     id: p.id,
     status: "신규",
@@ -97,13 +104,13 @@ export function proposalToSeed(p: RawProposal, inf: RawInfluencer, trialStartedA
     platform,
     profile_name: p.profile_name,
     profile_url: platform === "youtube" ? "https://www.youtube.com" : "https://www.instagram.com",
-    profile_count: p.profile_count ?? 0,
+    profile_count: profileCount,
     selected_categories: p.selected_categories ?? [],
     avg_likes: p.avg_likes ?? undefined,
     avg_saves: p.avg_saves ?? undefined,
     avg_shares: p.avg_shares ?? undefined,
     avg_views: p.avg_views ?? undefined,
-    peak_views: p.peak_views ?? 0,
+    peak_views: peakViews,
     collab_count: p.collab_count ?? "0회",
     story_text: p.story_text ?? "",
     content_types: Array.isArray(p.content_types) ? p.content_types : [],

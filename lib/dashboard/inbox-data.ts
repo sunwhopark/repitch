@@ -62,6 +62,7 @@ export async function getInboxItems(supabase: SupabaseClient, userId: string): P
       targetType: p.target_type,
       hasProfile: hasProfile(inf),
       displayName: inf?.display_name ?? p.profile_name,
+      verified: !!inf?.channels?.some((c) => c.verified && c.platform === p.platform),
       decision: decisionRecordFromRow(decByProposal.get(p.id) ?? null),
       visible,
       exclusionReason: visible ? null : exclusionReason(scored.proposal, filters, bp),

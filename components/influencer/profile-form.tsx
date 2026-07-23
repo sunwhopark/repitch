@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, LogOut, Sparkles } from "lucide-react";
+import { Plus, X, LogOut, Sparkles, BadgeCheck, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,16 @@ const CREATOR_TYPES = ["실물", "버추얼"];
 const GENDERS = ["여성", "남성"];
 const COUNTRIES = ["대한민국", "미국", "일본"];
 
-type Channel = { platform: string; handle: string; follower_count: number | null; avg_views: number | null };
+type Channel = {
+  platform: string;
+  handle: string;
+  follower_count: number | null;
+  avg_views: number | null;
+  verified?: boolean;
+  verified_at?: string;
+  channel_id?: string;
+  title?: string;
+};
 
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -48,6 +57,36 @@ export function ProfileForm({ profile }: { profile: InfluencerProfile }) {
   const addChannel = () => setChannels((c) => [...c, { platform: "instagram", handle: "", follower_count: null, avg_views: null }]);
   const setCh = (i: number, patch: Partial<Channel>) => setChannels((c) => c.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const rmCh = (i: number) => setChannels((c) => c.filter((_, idx) => idx !== i));
+
+  // YouTube 채널 검증(Data API). 성공 시 지표 자동 채움 + verified.
+  const [verifyingIdx, setVerifyingIdx] = useState<number | null>(null);
+  const [verifyErr, setVerifyErr] = useState<Record<number, string>>({});
+  async function verifyYt(i: number) {
+    const ch = channels[i];
+    if (!ch.handle.trim()) return;
+    setVerifyingIdx(i);
+    setVerifyErr((e) => ({ ...e, [i]: "" }));
+    try {
+      const res = await fetch("/api/channels/youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: ch.handle.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setVerifyErr((e) => ({ ...e, [i]: data.error ?? "확인에 실패했어요." })); setVerifyingIdx(null); return; }
+      setCh(i, {
+        follower_count: data.subscribers,
+        avg_views: data.avgViews,
+        verified: true,
+        verified_at: new Date().toISOString(),
+        channel_id: data.channelId,
+        title: data.title,
+      });
+    } catch {
+      setVerifyErr((e) => ({ ...e, [i]: "네트워크 오류. 다시 시도해 주세요." }));
+    }
+    setVerifyingIdx(null);
+  }
 
   async function save() {
     setSaving(true);
@@ -110,21 +149,56 @@ export function ProfileForm({ profile }: { profile: InfluencerProfile }) {
         <div className="grid gap-2">
           <Label className="text-[13px]">채널 <span className="text-[11px] text-muted-foreground">복수 등록 가능</span></Label>
           <div className="grid gap-2.5">
-            {channels.map((ch, i) => (
-              <div key={i} className="rounded-xl border border-border p-3">
-                <div className="flex items-center gap-2">
-                  <select value={ch.platform} onChange={(e) => setCh(i, { platform: e.target.value })} className="h-9 rounded-lg border border-border bg-transparent px-2 text-sm outline-none">
-                    {PLATFORMS.map((p) => <option key={p} value={p}>{PLATFORM_LABEL[p]}</option>)}
-                  </select>
-                  <Input value={ch.handle} onChange={(e) => setCh(i, { handle: e.target.value })} placeholder="@핸들" className="h-9 flex-1 rounded-lg" />
-                  <button type="button" onClick={() => rmCh(i)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+            {channels.map((ch, i) => {
+              const isYT = ch.platform === "youtube";
+              return (
+                <div key={i} className="rounded-xl border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    <select value={ch.platform} onChange={(e) => setCh(i, { platform: e.target.value, verified: false, verified_at: undefined, channel_id: undefined, title: undefined })} className="h-9 rounded-lg border border-border bg-transparent px-2 text-sm outline-none">
+                      {PLATFORMS.map((p) => <option key={p} value={p}>{PLATFORM_LABEL[p]}</option>)}
+                    </select>
+                    <Input value={ch.handle} onChange={(e) => setCh(i, { handle: e.target.value, verified: false })} placeholder={isYT ? "@핸들 · URL · 채널ID" : "@핸들"} className="h-9 flex-1 rounded-lg" />
+                    <button type="button" onClick={() => rmCh(i)} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+                  </div>
+
+                  {isYT && ch.verified ? (
+                    // 검증됨 — Data API 지표(자동)
+                    <div className="mt-2 rounded-lg bg-muted/40 p-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <BadgeCheck className="size-4 text-foreground" />
+                        <span className="text-sm font-semibold">{ch.title}</span>
+                        <span className="rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">채널 인증</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground tabular-nums">
+                        <span>구독자 {ch.follower_count?.toLocaleString() ?? "비공개"}</span>
+                        <span>평균 조회수 {ch.avg_views?.toLocaleString() ?? "—"}</span>
+                      </div>
+                      <button type="button" disabled={verifyingIdx === i} onClick={() => verifyYt(i)} className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-foreground underline underline-offset-2">
+                        <RefreshCw className={cn("size-3", verifyingIdx === i && "animate-spin")} /> 지표 새로고침
+                      </button>
+                    </div>
+                  ) : isYT ? (
+                    // 미검증 YT — 채널 확인 유도
+                    <div className="mt-2">
+                      <button type="button" disabled={verifyingIdx === i || !ch.handle.trim()} onClick={() => verifyYt(i)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-bold text-background disabled:bg-muted disabled:text-muted-foreground">
+                        {verifyingIdx === i ? "확인 중…" : "채널 확인"}
+                      </button>
+                      {verifyErr[i] && <p className="mt-1.5 text-[11px] text-destructive">{verifyErr[i]}</p>}
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">YouTube 채널을 확인하면 구독자·평균 조회수가 자동으로 채워지고 인증 뱃지가 붙어요.</p>
+                    </div>
+                  ) : (
+                    // IG/틱톡 — 수동 입력(본인 입력)
+                    <>
+                      <div className="mt-2 flex gap-2">
+                        <Input type="number" inputMode="numeric" value={ch.follower_count ?? ""} onChange={(e) => setCh(i, { follower_count: e.target.value ? Number(e.target.value) : null })} placeholder="팔로워" className="h-9 rounded-lg" />
+                        <Input type="number" inputMode="numeric" value={ch.avg_views ?? ""} onChange={(e) => setCh(i, { avg_views: e.target.value ? Number(e.target.value) : null })} placeholder="평균 조회수" className="h-9 rounded-lg" />
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">본인 입력 · 자동 검증은 YouTube만 지원해요.</p>
+                    </>
+                  )}
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <Input type="number" inputMode="numeric" value={ch.follower_count ?? ""} onChange={(e) => setCh(i, { follower_count: e.target.value ? Number(e.target.value) : null })} placeholder="팔로워" className="h-9 rounded-lg" />
-                  <Input type="number" inputMode="numeric" value={ch.avg_views ?? ""} onChange={(e) => setCh(i, { avg_views: e.target.value ? Number(e.target.value) : null })} placeholder="평균 조회수" className="h-9 rounded-lg" />
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <button type="button" onClick={addChannel} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground">
               <Plus className="size-4" /> 채널 추가
             </button>
