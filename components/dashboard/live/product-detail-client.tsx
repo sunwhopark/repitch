@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Package, LineChart, ExternalLink } from "lucide-react";
+import { ArrowLeft, Package, LineChart, ExternalLink, RefreshCw, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductFormModal } from "@/components/dashboard/live/product-form-modal";
-import { CAMPAIGN_STATUS_LABEL, won, type Product, type DbCampaign } from "@/components/dashboard/live/types";
+import { SnapshotEntryModal } from "@/components/dashboard/live/snapshot-entry-modal";
+import { CommerceChart } from "@/components/dashboard/live/commerce-chart";
+import { CAMPAIGN_STATUS_LABEL, won, type Product, type DbCampaign, type ProductSnapshot, type SnapshotEvent } from "@/components/dashboard/live/types";
 
 type LinkedCampaign = Pick<DbCampaign, "id" | "goal" | "status" | "created_at">;
 
@@ -14,14 +16,39 @@ export function ProductDetailClient({
   campaigns,
   brandId,
   proposalCount = 0,
+  snapshots = [],
+  events = [],
 }: {
   product: Product;
   campaigns: LinkedCampaign[];
   brandId: string;
   proposalCount?: number;
+  snapshots?: ProductSnapshot[];
+  events?: SnapshotEvent[];
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [collecting, setCollecting] = useState(false);
+  const [collectMsg, setCollectMsg] = useState("");
+
+  async function collectNow() {
+    setCollecting(true);
+    setCollectMsg("");
+    try {
+      const res = await fetch("/api/products/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id }),
+      });
+      const data = await res.json();
+      if (data.collected) { setCollectMsg("수집 완료 · 차트에 반영했어요."); router.refresh(); }
+      else setCollectMsg(data.reason ?? "지금은 수집하지 못했어요.");
+    } catch {
+      setCollectMsg("네트워크 오류. 다시 시도해 주세요.");
+    }
+    setCollecting(false);
+  }
 
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
@@ -92,14 +119,32 @@ export function ProductDetailClient({
           </div>
         </section>
 
-        {/* 성과 추적 자리 (Phase 3 크롤러) */}
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-          <LineChart className="size-5 shrink-0" />
-          <span>성과 추적(도달·참여·판매)은 데이터 연동 후 제공됩니다.</span>
+        {/* 성과 추적 — 수집 컨트롤 */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setEntryOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-sm font-bold text-background">
+            <PenLine className="size-4" /> 지표 직접 입력
+          </button>
+          <button type="button" disabled={collecting || !product.product_url} onClick={collectNow} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-sm font-medium hover:bg-accent disabled:opacity-50">
+            <RefreshCw className={cn("size-4", collecting && "animate-spin")} /> {collecting ? "수집 중…" : "지금 수집"}
+          </button>
+          {collectMsg && <span className="text-[12px] text-muted-foreground">{collectMsg}</span>}
         </div>
+        {!product.product_url && (
+          <p className="mt-1.5 text-[11px] text-muted-foreground">자동 수집하려면 제품 수정에서 상세 URL(쿠팡·네이버)을 넣어주세요. 매출·주문은 직접 입력해요.</p>
+        )}
+
+        {snapshots.length > 0 ? (
+          <CommerceChart snapshots={snapshots} events={events} />
+        ) : (
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            <LineChart className="size-5 shrink-0" />
+            <span>데이터 축적 중 · 매일 자동 수집되고, [지표 직접 입력]으로 매출·리뷰를 바로 쌓을 수 있어요.</span>
+          </div>
+        )}
       </div>
 
       <ProductFormModal open={editOpen} onOpenChange={setEditOpen} brandId={brandId} initial={product} />
+      <SnapshotEntryModal open={entryOpen} onOpenChange={setEntryOpen} productId={product.id} defaultPrice={product.price} />
     </div>
   );
 }

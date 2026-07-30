@@ -78,6 +78,21 @@ export type CampaignApplication = {
   display_name?: string | null;
 };
 
+// 커머스 성과 스냅샷(0020). 매출·리뷰·가격 중심, rank 옵션. 결측(null) 허용.
+export type ProductSnapshot = {
+  captured_at: string; // YYYY-MM-DD
+  rank: number | null;
+  review_count: number | null;
+  rating: number | null;
+  price: number | null;
+  revenue: number | null;
+  order_count: number | null;
+  source: string;
+};
+
+// 차트 이벤트 마커 — 이 제품 대상 역제안 '수락' 시점(게시 근사).
+export type SnapshotEvent = { date: string; label: string };
+
 export const SALES_CHANNELS = ["올리브영", "쿠팡", "네이버 스마트스토어", "자사몰", "기타"] as const;
 
 export const CAMPAIGN_STATUS_LABEL: Record<DbCampaign["status"], string> = {
