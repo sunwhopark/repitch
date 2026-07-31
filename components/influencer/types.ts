@@ -88,6 +88,21 @@ export type MySentProposalRow = {
   decision: { decision: "rejected" | "negotiating" | "accepted"; reasons: string[] | null; nego_discount_pct: number | null; memo: string | null; updated_at: string } | null;
 };
 
+export type MyInvitationRow = {
+  invitation: { id: string; message: string | null; status: "pending" | "accepted" | "declined"; created_at: string };
+  campaign: {
+    campaign_id: string;
+    goal: string | null;
+    brand_name: string | null;
+    product_name: string | null;
+    product_image_url: string | null;
+    offer_type: "free" | "discount" | null;
+    deal_mode: "amount" | "percent" | null;
+    deal_value: number | null;
+    trial_weeks: number | null;
+  };
+};
+
 export type InfluencerProfile = {
   id: string;
   display_name: string | null;

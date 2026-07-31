@@ -45,6 +45,18 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     .select("id", { count: "exact", head: true })
     .eq("campaign_id", id);
 
+  // 보낸 제안(초대) 카운트 — 수락/대기
+  const { data: invites } = await supabase
+    .from("campaign_invitations")
+    .select("status")
+    .eq("campaign_id", id)
+    .eq("brand_id", user!.id);
+  const inviteStats = {
+    total: invites?.length ?? 0,
+    accepted: (invites ?? []).filter((i) => i.status === "accepted").length,
+    pending: (invites ?? []).filter((i) => i.status === "pending").length,
+  };
+
   const { product, ...rest } = campaign as DbCampaign & { product: Product | null };
 
   return (
@@ -55,6 +67,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
       products={products ?? []}
       brandId={user!.id}
       proposalCount={proposalCount ?? 0}
+      inviteStats={inviteStats}
     />
   );
 }

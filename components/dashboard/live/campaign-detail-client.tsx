@@ -59,6 +59,7 @@ export function CampaignDetailClient({
   products,
   brandId,
   proposalCount = 0,
+  inviteStats,
 }: {
   campaign: DbCampaign;
   product: Product | null;
@@ -66,6 +67,7 @@ export function CampaignDetailClient({
   products: { id: string; name: string }[];
   brandId: string;
   proposalCount?: number;
+  inviteStats?: { total: number; accepted: number; pending: number };
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -195,7 +197,12 @@ export function CampaignDetailClient({
 
         {/* 지원자 */}
         <section className="mt-6">
-          <h2 className="text-sm font-bold">지원자 {applications.length}</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold">지원자 {applications.length}</h2>
+            {inviteStats && inviteStats.total > 0 && (
+              <span className="text-[12px] text-muted-foreground">보낸 제안 {inviteStats.total}건 · 수락 {inviteStats.accepted} / 대기 {inviteStats.pending}</span>
+            )}
+          </div>
           <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
             {applications.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-muted-foreground">아직 지원자가 없어요.</p>

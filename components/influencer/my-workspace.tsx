@@ -4,18 +4,26 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ApplicationsList } from "@/components/influencer/my-applications";
 import { SentProposalsList } from "@/components/influencer/my-sent";
-import type { MyApplicationRow, MySentProposalRow } from "@/components/influencer/types";
+import { ReceivedInvitationsList } from "@/components/influencer/my-invitations";
+import type { MyApplicationRow, MySentProposalRow, MyInvitationRow } from "@/components/influencer/types";
+
+type Tab = "applications" | "proposals" | "invitations";
 
 export function MyWorkspace({
   applications,
   proposals,
+  invitations,
+  ship,
   initialTab,
 }: {
   applications: MyApplicationRow[];
   proposals: MySentProposalRow[];
-  initialTab: "applications" | "proposals";
+  invitations: MyInvitationRow[];
+  ship: { recipient: string | null; phone: string | null; address: string | null };
+  initialTab: Tab;
 }) {
-  const [tab, setTab] = useState<"applications" | "proposals">(initialTab);
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const pendingInvites = invitations.filter((i) => i.invitation.status === "pending").length;
 
   return (
     <div>
@@ -23,7 +31,7 @@ export function MyWorkspace({
       <p className="mt-1 text-sm text-muted-foreground">지원·제안 진행 상태예요.</p>
 
       <div className="mt-4 flex rounded-full border border-border p-0.5">
-        {([["applications", `지원 ${applications.length}`], ["proposals", `보낸 제안 ${proposals.length}`]] as const).map(([k, label]) => (
+        {([["applications", `지원 ${applications.length}`], ["proposals", `보낸 제안 ${proposals.length}`], ["invitations", `받은 제안 ${pendingInvites}`]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={cn("flex-1 rounded-full py-1.5 text-sm font-medium transition-colors", tab === k ? "bg-foreground text-background" : "text-muted-foreground")}>
             {label}
           </button>
@@ -31,7 +39,9 @@ export function MyWorkspace({
       </div>
 
       <div className="mt-4">
-        {tab === "applications" ? <ApplicationsList rows={applications} /> : <SentProposalsList rows={proposals} />}
+        {tab === "applications" && <ApplicationsList rows={applications} />}
+        {tab === "proposals" && <SentProposalsList rows={proposals} />}
+        {tab === "invitations" && <ReceivedInvitationsList rows={invitations} ship={ship} />}
       </div>
     </div>
   );
