@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { CONSENT_PRIVACY, CONSENT_MARKETING, LEGAL_ROUTES } from "@/lib/legal";
 import { ConsentRow, Field, SignupFrame } from "@/components/auth/signup-shared";
@@ -12,6 +13,7 @@ export function InfluencerSignup({ onBack }: { onBack: () => void }) {
   const [done, setDone] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
@@ -20,7 +22,14 @@ export function InfluencerSignup({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false);
 
   const emailOk = /.+@.+\..+/.test(email);
-  const canSubmit = emailOk && password.length >= 8 && displayName.trim() !== "" && agreedTerms && agreedPrivacy;
+  const passwordMismatch = confirmPassword !== "" && password !== confirmPassword;
+  const canSubmit =
+    emailOk &&
+    password.length >= 8 &&
+    password === confirmPassword &&
+    displayName.trim() !== "" &&
+    agreedTerms &&
+    agreedPrivacy;
 
   async function submit() {
     setError("");
@@ -73,7 +82,11 @@ export function InfluencerSignup({ onBack }: { onBack: () => void }) {
       <p className="mt-1 text-sm text-muted-foreground">가입하면 바로 캠페인에 지원할 수 있어요.</p>
       <div className="mt-6 grid gap-4">
         <Field label="이메일"><Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="me@email.com" className="rounded-xl" /></Field>
-        <Field label="비밀번호" help="8자 이상"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" /></Field>
+        <Field label="비밀번호" help="8자 이상"><PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" /></Field>
+        <Field label="비밀번호 확인">
+          <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" />
+          {passwordMismatch && <p className="text-[13px] text-destructive">비밀번호가 일치하지 않아요</p>}
+        </Field>
         <Field label="활동명"><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="예: 서연뷰티" className="rounded-xl" /></Field>
         <div className="grid gap-3 rounded-xl border border-border p-3.5">
           <ConsentRow checked={agreedTerms} onChange={setAgreedTerms}>

@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { BRAND_CATEGORIES } from "@/lib/brand-application-options";
 import { CONSENT_PRIVACY, CONSENT_MARKETING, LEGAL_ROUTES } from "@/lib/legal";
@@ -20,6 +21,7 @@ export function BrandSignup({ onBack }: { onBack: () => void }) {
   const [done, setDone] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [brandName, setBrandName] = useState("");
   const [contactName, setContactName] = useState("");
   const [agreedTerms, setAgreedTerms] = useState(false);
@@ -33,7 +35,15 @@ export function BrandSignup({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false);
 
   const emailOk = /.+@.+\..+/.test(email);
-  const canStep1 = emailOk && password.length >= 8 && brandName.trim() !== "" && contactName.trim() !== "" && agreedTerms && agreedPrivacy;
+  const passwordMismatch = confirmPassword !== "" && password !== confirmPassword;
+  const canStep1 =
+    emailOk &&
+    password.length >= 8 &&
+    password === confirmPassword &&
+    brandName.trim() !== "" &&
+    contactName.trim() !== "" &&
+    agreedTerms &&
+    agreedPrivacy;
   const canSubmit = category !== "" && creatorType !== "" && gender !== "" && countries.length > 0;
 
   const toggleCountry = (c: string) => setCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -107,7 +117,11 @@ export function BrandSignup({ onBack }: { onBack: () => void }) {
           <p className="mt-1 text-sm text-muted-foreground">로그인에 사용할 정보를 입력해 주세요.</p>
           <div className="mt-6 grid gap-4">
             <Field label="이메일"><Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="brand@company.com" className="rounded-xl" /></Field>
-            <Field label="비밀번호" help="8자 이상"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" /></Field>
+            <Field label="비밀번호" help="8자 이상"><PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" /></Field>
+            <Field label="비밀번호 확인">
+              <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" className="rounded-xl" />
+              {passwordMismatch && <p className="text-[13px] text-destructive">비밀번호가 일치하지 않아요</p>}
+            </Field>
             <Field label="브랜드명"><Input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="예: 이니스프리" className="rounded-xl" /></Field>
             <Field label="담당자명"><Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="예: 김리피" className="rounded-xl" /></Field>
             <div className="grid gap-3 rounded-xl border border-border p-3.5">
